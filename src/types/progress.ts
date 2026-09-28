@@ -1,7 +1,8 @@
-import type { GestureErrorCode } from './vision';
-import type { Stars } from './lesson';
+import type { GestureErrorCode } from "./vision";
+import type { Stars } from "./lesson";
 
-export type LessonPhase = 'intro' | 'learn' | 'practice' | 'transition' | 'completed';
+export type LessonPhase =
+  "learn" | "ready" | "practice" | "transition" | "completed";
 
 export interface GestureAttempt {
   gestureId: string;
