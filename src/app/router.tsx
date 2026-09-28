@@ -1,10 +1,10 @@
 import { createBrowserRouter } from "react-router-dom";
 import { LandingPage } from "../pages/LandingPage";
 import { AuthPage } from "../pages/AuthPage";
-import { VerifyEmailPage } from "../pages/VerifyEmailPage";
+import { Navigate } from "react-router-dom";
 import { DashboardPage } from "../pages/DashboardPage";
 import { LessonOverviewPage } from "../pages/LessonOverviewPage";
-import { ProtectedRoutes } from "../components/layout/ProtectedRoutes";
+import { ProtectedRoutes, AdminRoutes, PreviewRoutes } from "../components/layout/ProtectedRoutes";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { ErrorFallback } from "../components/common/ErrorBoundary";
 import { ROUTES } from "./constants";
@@ -27,7 +27,7 @@ export const router = createBrowserRouter([
   },
   {
     path: ROUTES.verifyEmail,
-    element: <VerifyEmailPage />,
+    element: <Navigate to={ROUTES.login} replace />,
     errorElement: <ErrorFallback />,
   },
   {
@@ -49,6 +49,17 @@ export const router = createBrowserRouter([
         }),
       },
     ],
+  },
+  {
+    element: <PreviewRoutes />,
+    children: [
+      { path: ROUTES.preview, lazy: async () => ({ Component: (await import("../pages/PreviewPage")).PreviewPage }) },
+      { path: ROUTES.previewResult, lazy: async () => ({ Component: (await import("../pages/PreviewPage")).PreviewResultPage }) },
+    ],
+  },
+  {
+    element: <AdminRoutes />,
+    children: [{ path: ROUTES.admin, lazy: async () => ({ Component: (await import("../pages/AdminPage")).AdminPage }) }],
   },
   { path: "*", element: <NotFoundPage />, errorElement: <ErrorFallback /> },
 ]);

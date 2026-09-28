@@ -1,4 +1,4 @@
-import type { HandLandmark } from "../types/vision";
+import type { Point3 } from "../vision/types";
 
 const connections = [
   [0, 1],
@@ -25,7 +25,7 @@ const connections = [
 ];
 interface SkeletonOptions {
   ctx: CanvasRenderingContext2D;
-  landmarks: readonly HandLandmark[];
+  landmarks: readonly Point3[];
   width: number;
   height: number;
   mirrored: boolean;
@@ -89,4 +89,43 @@ export function drawHandSkeleton({
     ctx.arc(p.x, p.y, Math.max(4, width / 140), 0, Math.PI * 2);
     ctx.fill();
   });
+}
+
+// Одинаковые размеры, зеркальность и цвета в уроке и при записи эталонов.
+export function createSkeletonOverlay(video: HTMLVideoElement | null, canvas: HTMLCanvasElement | null) {
+  const ctx = canvas?.getContext("2d");
+  if (!video || !canvas || !ctx) return;
+  const style = getComputedStyle(document.documentElement);
+  const colors = {
+    neutral: style.getPropertyValue("--color-skeleton-neutral").trim(),
+    correct: style.getPropertyValue("--color-skeleton-correct").trim(),
+    incorrect: style.getPropertyValue("--color-skeleton-incorrect").trim(),
+  };
+  let landmarks: readonly Point3[] = [];
+  let highlights: Pick<SkeletonOptions, "incorrectLandmarks" | "correctLandmarks"> = {};
+  function redraw() {
+    if (!video || !canvas || !ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    const width = Math.round(canvas.clientWidth * dpr);
+    const height = Math.round(canvas.clientHeight * dpr);
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    drawHandSkeleton({
+      ctx, landmarks, width, height, mirrored: true, colors, ...highlights,
+      sourceWidth: video.videoWidth || 640, sourceHeight: video.videoHeight || 480,
+    });
+  }
+  const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(redraw);
+  observer?.observe(canvas);
+  redraw();
+  return {
+    draw(points: readonly Point3[], nextHighlights: typeof highlights = {}) {
+      landmarks = points;
+      highlights = nextHighlights;
+      redraw();
+    },
+    dispose() { observer?.disconnect(); },
+  };
 }

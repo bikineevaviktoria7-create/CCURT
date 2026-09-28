@@ -1,6 +1,6 @@
 import { Check, LockKeyhole, Play, RotateCcw, Star } from "lucide-react";
 import { Link } from "react-router-dom";
-import { lessonSections } from "../../data/mockLessons";
+import { lessonSections } from "../../data/lessons";
 import { ROUTES } from "../../app/constants";
 import { lessonStatus } from "../../services/progressService";
 import type { Lesson } from "../../types/lesson";

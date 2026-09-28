@@ -1,8 +1,59 @@
-import { useCallback, useEffect, useReducer, useRef } from "react";
-import { initialSession, lessonSessionReducer } from "../lib/lessonSession";
-import { calculateLessonResult } from "../services/progressService";
-import type { GestureAttempt } from "../types/progress";
+import { useCallback, useEffect, useReducer, useState } from "react";
+import { calculateLessonResult } from "../services/progressService.ts";
+import type { GestureAttempt, LessonSessionState } from "../types/progress";
 import type { Lesson } from "../types/lesson";
+
+export type SessionAction =
+  | { type: "NEXT_THEORY"; total: number }
+  | { type: "START_PRACTICE" }
+  | { type: "ACCEPT"; attempt: GestureAttempt }
+  | { type: "ADVANCE"; total: number };
+
+export function initialSession(now: number): LessonSessionState {
+  return {
+    phase: "learn",
+    currentGestureIndex: 0,
+    attempts: [],
+    startedAt: now,
+  };
+}
+export function lessonSessionReducer(
+  state: LessonSessionState,
+  action: SessionAction,
+): LessonSessionState {
+  switch (action.type) {
+    case "NEXT_THEORY":
+      if (state.phase !== "learn") return state;
+      return state.currentGestureIndex + 1 === action.total
+        ? { ...state, phase: "ready", currentGestureIndex: 0 }
+        : { ...state, currentGestureIndex: state.currentGestureIndex + 1 };
+    case "START_PRACTICE":
+      return state.phase === "ready"
+        ? {
+            ...state,
+            phase: "practice",
+            currentGestureIndex: 0,
+          }
+        : state;
+    case "ACCEPT":
+      return state.phase === "practice"
+        ? {
+            ...state,
+            phase: "transition",
+            attempts: [...state.attempts, action.attempt],
+          }
+        : state;
+    case "ADVANCE":
+      if (state.phase !== "transition") return state;
+      return state.currentGestureIndex + 1 === action.total
+        ? { ...state, phase: "completed" }
+        : {
+            ...state,
+            phase: "practice",
+            currentGestureIndex: state.currentGestureIndex + 1,
+          };
+  }
+}
 
 export function useLessonSession(lesson: Lesson) {
   const [state, dispatch] = useReducer(
@@ -10,7 +61,7 @@ export function useLessonSession(lesson: Lesson) {
     Date.now(),
     initialSession,
   );
-  const sessionId = useRef(crypto.randomUUID());
+  const [sessionId] = useState(() => crypto.randomUUID());
   useEffect(() => {
     if (state.phase !== "transition") return;
     const timer = window.setTimeout(
@@ -18,7 +69,6 @@ export function useLessonSession(lesson: Lesson) {
         dispatch({
           type: "ADVANCE",
           total: lesson.gestures.length,
-          now: Date.now(),
         }),
       950,
     );
@@ -32,14 +82,17 @@ export function useLessonSession(lesson: Lesson) {
     state,
     accept,
     nextTheory: () =>
-      dispatch({ type: "NEXT_THEORY", total: lesson.gestures.length }),
-    startPractice: () => dispatch({ type: "START_PRACTICE", now: Date.now() }),
+      dispatch({
+        type: "NEXT_THEORY",
+        total: (lesson.theoryGestures ?? lesson.gestures).length,
+      }),
+    startPractice: () => dispatch({ type: "START_PRACTICE" }),
     result: () =>
       calculateLessonResult(
         lesson.id,
         state.attempts,
         state.startedAt,
-        sessionId.current,
+        sessionId,
       ),
   };
 }

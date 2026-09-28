@@ -25,6 +25,8 @@ export const storage = {
     try {
       localStorage.removeItem(prefix + key);
     } catch {
+      // Do not resurrect the stale disk value after a failed removal.
+      memory.set(key, undefined);
       available = false;
     }
   },

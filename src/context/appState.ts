@@ -4,6 +4,8 @@ import type { LearningProgress, LessonResult } from "../types/progress";
 
 interface AppState {
   user: User | null;
+  /** False while the saved session is being restored from the server. */
+  authReady: boolean;
   progress: LearningProgress;
   setUser(user: User): void;
   logout(): void;

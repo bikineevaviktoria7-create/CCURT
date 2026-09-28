@@ -1,3 +1,8 @@
 {
-  "rewrites": [{ "source": "/((?!assets/).*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/((?!assets/|models/|mediapipe/|data/).*)",
+      "destination": "/index.html"
+    }
+  ]
 }

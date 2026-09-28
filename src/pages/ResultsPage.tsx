@@ -4,7 +4,8 @@ import { ArrowRight, Check, RotateCcw, Star } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useApp } from "../context/appState";
 import { useLessons } from "../hooks/useLessons";
-import { frequentErrors } from "../services/progressService";
+import { frequentErrors, isDemoResult, lessonStatus, progressService } from "../services/progressService";
+import { feedback } from "../lib/feedback";
 import { Page } from "../components/layout/Page";
 import { ContentState } from "../components/common/ContentState";
 import { ROUTES } from "../app/constants";
@@ -35,10 +36,15 @@ function ScoreReveal({ score }: { score: number }) {
 
 export function ResultsPage() {
   const { sessionId } = useParams();
-  const { progress } = useApp();
+  const { user, progress } = useApp();
   const { lessons, status, retry } = useLessons();
   const reduced = useReducedMotion();
-  const result = progress.sessions.find((item) => item.sessionId === sessionId);
+  const result = progress.sessions.find((item) => item.sessionId === sessionId) ??
+    (user && sessionId ? progressService.getResult(user.id, sessionId) : undefined);
+  const found = Boolean(result);
+  useEffect(() => {
+    if (found) feedback.lessonComplete();
+  }, [found]);
   if (status !== "ready")
     return (
       <Page>
@@ -60,6 +66,8 @@ export function ResultsPage() {
   const currentIndex = lessons.findIndex((item) => item.id === result.lessonId);
   const next = currentIndex >= 0 ? lessons[currentIndex + 1] : undefined;
   const lesson = lessons[currentIndex];
+  const demo = isDemoResult(result);
+  const nextAvailable = next && lessonStatus(next, lessons, progress) !== "locked";
   const errors = frequentErrors(result.attempts);
   const seconds = Math.floor(result.durationMs / 1000);
   return (
@@ -73,7 +81,12 @@ export function ResultsPage() {
           Урок {lesson?.number}
         </span>
         <h1>Урок завершён</h1>
-        <p>Ещё один шаг к пониманию друг друга.</p>
+        {demo && <p className="notice">Результат демонстрации: очки, статистика и прогресс обучения не изменились.</p>}
+        <p>
+          {lesson?.personalized === "name" && lesson.spelledName && lesson.spelledName.letters.length >= 2
+            ? "Вы показали своё имя на жестовом языке!"
+            : "Ещё один шаг к пониманию друг друга."}
+        </p>
         <div
           className="result-stars"
           role="img"
@@ -114,7 +127,7 @@ export function ResultsPage() {
         </div>
         <p className="result-time">
           Время занятия: {String(Math.floor(seconds / 60)).padStart(2, "0")}:
-          {String(seconds % 60).padStart(2, "0")} · Результат демонстрации
+          {String(seconds % 60).padStart(2, "0")}
         </p>
         <div className="frequent-errors card">
           <h2>Частые ошибки</h2>
@@ -138,7 +151,7 @@ export function ResultsPage() {
           )}
         </div>
         <div className="result-actions">
-          {next ? (
+          {next && nextAvailable ? (
             <Link
               className="button button--primary"
               to={ROUTES.lesson(next.id)}
@@ -146,11 +159,12 @@ export function ResultsPage() {
               Следующий урок
               <ArrowRight size={18} />
             </Link>
-          ) : (
+          ) : !next && !demo ? (
             <p className="notice">
-              Вы прошли все 20 уроков! Можно повторить любой на дорожке.
+              Вы прошли все {lessons.length} уроков! Можно повторить любой на
+              дорожке.
             </p>
-          )}
+          ) : null}
           <Link
             className="button button--secondary"
             to={ROUTES.lesson(result.lessonId)}

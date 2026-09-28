@@ -1,10 +1,12 @@
-import type { GestureErrorCode } from "./vision";
+import type { GestureErrorCode, VisionMode } from "./vision";
 import type { Stars } from "./lesson";
 
 export type LessonPhase =
   "learn" | "ready" | "practice" | "transition" | "completed";
 
 export interface GestureAttempt {
+  /** Absent only in legacy results, whose source was not recorded. */
+  mode?: VisionMode;
   gestureId: string;
   success: boolean;
   skipped: boolean;
@@ -18,10 +20,10 @@ export interface LessonSessionState {
   currentGestureIndex: number;
   attempts: GestureAttempt[];
   startedAt: number;
-  currentGestureStartedAt: number;
 }
 
 export interface LessonResult {
+  mode?: VisionMode;
   sessionId: string;
   lessonId: string;
   completedAt: string;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Camera, Check } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useLessons } from "../hooks/useLessons";
 import { useLessonSession } from "../hooks/useLessonSession";
@@ -38,9 +38,11 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
   const navigate = useNavigate();
   const reduced = useReducedMotion();
   const main = useRef<HTMLElement>(null);
-  const gesture = lesson.gestures[state.currentGestureIndex];
-  const total = lesson.gestures.length;
   const theory = state.phase === "learn";
+  const theoryList = lesson.theoryGestures ?? lesson.gestures;
+  const list = theory ? theoryList : lesson.gestures;
+  const gesture = list[state.currentGestureIndex];
+  const total = list.length;
   const ready = state.phase === "ready";
   const practicing = state.phase === "practice";
   useEffect(() => {
@@ -69,9 +71,9 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
         </div>
         <div className="lesson-progress">
           <div className="segments" aria-hidden="true">
-            {lesson.gestures.map((item, index) => (
+            {list.map((item, index) => (
               <span
-                key={item.id}
+                key={`${item.id}-${index}`}
                 className={
                   ready ||
                   (theory
@@ -88,7 +90,8 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
             ))}
           </div>
           <span aria-label="Прогресс урока">
-            {ready ? total : state.currentGestureIndex + 1} / {total}
+            {ready ? theoryList.length : state.currentGestureIndex + 1} /{" "}
+            {ready ? theoryList.length : total}
           </span>
         </div>
       </header>
@@ -97,7 +100,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
           <AnimatePresence mode="wait" initial={false}>
             <motion.section
               className="learn-screen"
-              key={gesture.id}
+              key={`${gesture.id}-${state.currentGestureIndex}`}
               initial={reduced ? false : { opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0 }}
@@ -120,10 +123,12 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
                   <span className="eyebrow">Как выполнить</span>
                   <h2>{gesture.title}</h2>
                   <p>{gesture.description}</p>
-                  <p className="notice">
-                    Это демоверсия занятия. Заглушка не показывает технику
-                    жеста.
-                  </p>
+                  {!gesture.referenceMedia && (
+                    <p className="notice">
+                      Фото этого жеста ещё не добавлено. Сверьтесь с
+                      видеословарём РЖЯ.
+                    </p>
+                  )}
                   <Button onClick={session.nextTheory}>
                     Далее
                     <ArrowRight size={19} />
@@ -137,7 +142,9 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
             <span className="ready-icon">
               <Camera size={34} />
             </span>
-            <span className="eyebrow">Просмотрено жестов: {total} из {total}</span>
+            <span className="eyebrow">
+              Просмотрено жестов: {theoryList.length} из {theoryList.length}
+            </span>
             <h1>Теперь попробуйте сами</h1>
             <p>
               Покажите жесты по порядку:
@@ -157,12 +164,13 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
             <p className="privacy">
               На следующем экране браузер попросит доступ к камере.
               <br />
-              Если камеры нет, можно пройти демонстрацию.
+              Для распознавания нужны камера и проверенные эталоны.
             </p>
           </section>
         ) : (
           <PracticeGesture
             gesture={gesture}
+            targetKey={state.currentGestureIndex}
             onAccept={session.accept}
             transitioning={state.phase === "transition"}
             paused={exit}
@@ -200,6 +208,8 @@ export function LessonPage() {
         <ContentState status={status} retry={retry} />
       </Page>
     );
+  if (lesson?.needsName)
+    return <Navigate to={ROUTES.lesson(lesson.id)} replace />;
   if (!lesson || lessonStatus(lesson, lessons, progress) === "locked")
     return (
       <Page>

@@ -1,7 +1,6 @@
 import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { LoaderCircle } from 'lucide-react';
-import { cn } from '../../lib/utils';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -19,7 +18,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {...props}
       ref={ref}
       type={type}
-      className={cn('button', `button--${variant}`, fullWidth && 'w-full', className)}
+      className={`button button--${variant}${fullWidth ? ' w-full' : ''}${className ? ` ${className}` : ''}`}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
     >

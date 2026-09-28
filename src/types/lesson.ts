@@ -30,13 +30,13 @@ export interface Lesson {
   type: 'learning' | 'practice';
   estimatedMinutes: number;
   gestures: readonly Gesture[];
-}
-
-// Progress belongs to the learner, never to the shared content repository.
-export interface LessonWithProgress extends Lesson {
-  status: LessonStatus;
-  progress: number;
-  stars: Stars;
+  /** 'name': the learner's own name is spelled letter by letter after the words. */
+  personalized?: 'name';
+  /** Theory list when it differs from practice (each name letter shown once). */
+  theoryGestures?: readonly Gesture[];
+  /** Personalised lesson that still waits for the learner's name. */
+  needsName?: boolean;
+  spelledName?: { name: string; skipped: string[]; letters: readonly Gesture[] };
 }
 
 export interface LessonSection {

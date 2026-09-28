@@ -1,3 +1,5 @@
+import type { Point3 } from "../vision/types";
+
 export type RecognitionStatus =
   | 'idle'
   | 'searching'
@@ -17,7 +19,8 @@ export type GestureErrorCode =
   | 'SPEED'
   | 'HAND_OUT_OF_FRAME'
   | 'LOW_LIGHT'
-  | 'WRONG_HAND';
+  | 'WRONG_HAND'
+  | 'WRONG_GESTURE';
 
 export interface RecognitionResult {
   status: RecognitionStatus;
@@ -31,23 +34,20 @@ export interface RecognitionResult {
   correctLandmarks?: readonly number[];
 }
 
-export interface HandLandmark {
-  x: number;
-  y: number;
-  z: number;
-}
-
-// Frame data is delivered to refs/canvas; it must not enter React state.
-export interface HandFrame {
-  timestamp: number;
-  landmarks: readonly HandLandmark[];
+// Кадры идут прямо в canvas, результаты — в React с ограничением частоты.
+export interface VisionCallbacks {
+  onResult(result: RecognitionResult): void;
+  onFrame(landmarks: readonly Point3[]): void;
+  onError(error: unknown): void;
 }
 
 export interface VisionAdapter {
+  readonly mode: VisionMode;
   initialize(): Promise<void>;
   start(video: HTMLVideoElement): Promise<void>;
   stop(): void;
-  /** Semantic results only, limited to 5–10 updates per second. */
-  subscribe(callback: (result: RecognitionResult) => void): () => void;
-  subscribeFrames(callback: (frame: HandFrame) => void): () => void;
+  pause(paused: boolean): void;
+  simulate?(status: RecognitionStatus, confidence?: number, holdProgress?: number): void;
 }
+
+export type VisionMode = 'real' | 'demo';

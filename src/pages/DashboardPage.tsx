@@ -1,4 +1,8 @@
-import { BookOpen } from "lucide-react";
+import { BookOpen, Flame } from "lucide-react";
+import { ProgressChart } from "../components/progress/ProgressChart";
+import { streakDays } from "../services/progressService";
+import { Leaderboard } from "../components/progress/Leaderboard";
+import { SettingsPanel } from "../components/common/SettingsPanel";
 import { Page } from "../components/layout/Page";
 import { LearningPath } from "../components/lessons/LearningPath";
 import { ContentState } from "../components/common/ContentState";
@@ -9,7 +13,9 @@ export function DashboardPage() {
   const { user, progress } = useApp();
   const { lessons, status, retry } = useLessons();
   const completed = Object.values(progress.lessons);
-  const percentage = Math.round((completed.length / 20) * 100);
+  const total = lessons.length || 20;
+  const percentage = Math.round((completed.length / total) * 100);
+  const streak = streakDays(progress.sessions);
   return (
     <Page>
       <div className="learning-home">
@@ -39,7 +45,15 @@ export function DashboardPage() {
             </div>
             <div>
               <strong>Ваш прогресс</strong>
-              <p>{completed.length} из 20 уроков пройдено</p>
+              <p>
+                {completed.length} из {total} уроков пройдено
+              </p>
+              {streak > 0 && (
+                <p className="streak">
+                  <Flame size={16} aria-hidden="true" /> {streak}{" "}
+                  {streak === 1 ? "день" : streak < 5 ? "дня" : "дней"} подряд
+                </p>
+              )}
             </div>
             <div className="summary-score">
               <strong>
@@ -54,6 +68,15 @@ export function DashboardPage() {
             <span>Ваш путь начинается здесь. Выберите первый урок.</span>
           </div>
         )}
+        {completed.length > 0 && (
+          <div className="progress-insights">
+            <div className="card chart-card">
+              <ProgressChart sessions={progress.sessions} />
+            </div>
+            <Leaderboard refreshKey={progress.sessions.length} />
+          </div>
+        )}
+        <SettingsPanel />
         {status !== "ready" ? (
           <ContentState
             status={status}

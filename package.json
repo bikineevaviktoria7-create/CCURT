@@ -12,10 +12,14 @@
     "typecheck": "tsc -b",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "lint": "eslint . --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "node scripts/copy-mediapipe.mjs",
+    "models": "node scripts/download-models.mjs"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "^5.2.8",
+    "@mediapipe/tasks-vision": "1.0.1",
+    "@supabase/supabase-js": "2.117.2",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",

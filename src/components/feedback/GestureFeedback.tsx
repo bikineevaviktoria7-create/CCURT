@@ -2,7 +2,15 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, Hand, ScanLine, TriangleAlert, X } from "lucide-react";
 import type { RecognitionResult } from "../../types/vision";
 
-export function GestureFeedback({ result }: { result: RecognitionResult }) {
+export function GestureFeedback({
+  result,
+  demo = false,
+  handVisibility = false,
+}: {
+  result: RecognitionResult;
+  demo?: boolean;
+  handVisibility?: boolean;
+}) {
   const { status, holdProgress } = result;
   const title =
     status === "success"
@@ -15,7 +23,7 @@ export function GestureFeedback({ result }: { result: RecognitionResult }) {
             ? "Проверьте положение руки"
             : status === "searching"
               ? "Вижу руку"
-              : "Покажите жест в камеру";
+              : handVisibility ? "Покажите руку в камеру" : "Покажите жест в камеру";
   const Icon =
     status === "success"
       ? Check
@@ -45,7 +53,9 @@ export function GestureFeedback({ result }: { result: RecognitionResult }) {
             <p>
               {result.message ??
                 (status === "success"
-                  ? "Жест принят в демонстрации. Переходим дальше."
+                  ? demo
+                    ? "Жест принят в демонстрации. Переходим дальше."
+                    : "Жест распознан. Переходим дальше."
                   : status === "searching"
                     ? holdProgress > 0
                       ? "Удерживайте жест…"
@@ -80,7 +90,7 @@ export function GestureFeedback({ result }: { result: RecognitionResult }) {
       )}
       {result.confidence > 0 && status !== "environment-error" && (
         <p className="confidence">
-          Сходство в демо{" "}
+          {demo ? "Сходство в демо" : "Сходство с эталоном"}{" "}
           <strong>{Math.round(result.confidence * 100)}%</strong>
         </p>
       )}

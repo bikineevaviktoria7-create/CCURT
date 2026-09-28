@@ -11,9 +11,9 @@ export function LandingPage() {
   const navigate = useNavigate();
   const start = () => {
     setUser(authService.guest());
-    navigate(ROUTES.dashboard);
+    navigate(ROUTES.preview);
   };
-  if (user) return <Navigate to={ROUTES.dashboard} replace />;
+  if (user && !user.isGuest) return <Navigate to={ROUTES.dashboard} replace />;
   return (
     <Page>
       <section className="landing">
@@ -29,14 +29,15 @@ export function LandingPage() {
             — {APP_NAME} подскажет, что именно нужно исправить.
           </p>
           <Button
-            onClick={start}
+            onClick={() => navigate(ROUTES.login)}
             icon={<ArrowRight size={20} aria-hidden="true" />}
           >
             Начать обучение
           </Button>
           <div className="landing-links">
+            <Link to={ROUTES.login}>Войти</Link>
             <Link to={ROUTES.register}>Зарегистрироваться</Link>
-            <button onClick={start}>Попробовать без регистрации</button>
+            <button onClick={start}>Предпросмотр</button>
           </div>
           <p className="privacy">
             <ShieldCheck size={18} aria-hidden="true" />
@@ -66,8 +67,8 @@ export function LandingPage() {
             </div>
           </div>
           <p className="preview-note">
-            Сейчас доступна демонстрация. Распознавание и эталоны РЖЯ ещё
-            готовятся.
+            Распознавание работает прямо в браузере: камера → точки руки →
+            сравнение с эталонами → подсказка.
           </p>
         </div>
       </section>

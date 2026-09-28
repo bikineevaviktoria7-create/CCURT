@@ -1,4 +1,8 @@
 import { isRecord, storage } from "../lib/storage";
+import { MOCK_AUTH_ENABLED, MOCK_CREDENTIALS } from "../app/constants";
+import { currentUser } from "./accessService";
+import { supabase } from "../lib/supabase";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 import type {
   LoginCredentials,
   RegisterCredentials,
@@ -60,8 +64,106 @@ function remember(user: User) {
   return user;
 }
 
-// Local demo authentication only. Replace this service with a backend provider.
-export const authService = {
+async function profileFor(authUser: SupabaseUser): Promise<User> {
+  const fallbackName =
+    typeof authUser.user_metadata?.name === "string"
+      ? authUser.user_metadata.name
+      : (authUser.email?.split("@")[0] ?? "Ученик");
+  const { data } = supabase
+    ? await supabase.from("profiles").select("name, role").eq("id", authUser.id).maybeSingle()
+    : { data: null };
+  const profile = data as { name?: string; role?: string } | null;
+  return {
+    id: authUser.id,
+    name: profile?.name?.trim() || fallbackName,
+    email: authUser.email,
+    isGuest: false,
+    role: profile?.role === "admin" ? "admin" : "user",
+  };
+}
+
+function translate(message: string) {
+  const text = message.toLowerCase();
+  if (text.includes("invalid login")) return "Неверный email или пароль.";
+  if (text.includes("already registered")) return "Этот email уже зарегистрирован. Войдите в аккаунт.";
+  if (text.includes("expired") || text.includes("invalid") || text.includes("token"))
+    return "Код не подходит или устарел. Проверьте цифры или запросите новый код.";
+  if (text.includes("rate limit") || text.includes("security purposes"))
+    return "Слишком много попыток. Подождите минуту и попробуйте снова.";
+  if (text.includes("password")) return "Пароль не подходит: используйте не менее 8 символов.";
+  return "Не удалось связаться с сервером. Проверьте интернет и попробуйте снова.";
+}
+
+/** Supabase authentication with a real 6-digit email code. */
+const remoteAuth = {
+  async register({ name, email, password }: RegisterCredentials) {
+    if (!supabase) throw new Error("Сервер не настроен");
+    const normalized = email.trim().toLowerCase();
+    const { data, error } = await supabase.auth.signUp({
+      email: normalized,
+      password,
+      options: { data: { name: name.trim() } },
+    });
+    if (error) throw new Error(translate(error.message));
+    // With email confirmation on, an existing address returns a user without identities.
+    if (data.user && data.user.identities?.length === 0)
+      throw new Error("Этот email уже зарегистрирован. Войдите в аккаунт.");
+    storage.write("pending-email", normalized);
+  },
+  async verify(code: string, email: string) {
+    if (!supabase) throw new Error("Сервер не настроен");
+    let result = await supabase.auth.verifyOtp({ email, token: code, type: "email" });
+    if (result.error) result = await supabase.auth.verifyOtp({ email, token: code, type: "signup" });
+    if (result.error || !result.data.user) throw new Error(translate(result.error?.message ?? "invalid"));
+    storage.remove("pending-email");
+    return remember(await profileFor(result.data.user));
+  },
+  async resend(email: string) {
+    if (!supabase) return;
+    const { error } = await supabase.auth.resend({ type: "signup", email });
+    if (error) throw new Error(translate(error.message));
+  },
+  async login({ email, password }: LoginCredentials) {
+    if (!supabase) throw new Error("Сервер не настроен");
+    const normalized = email.trim().toLowerCase();
+    const { data, error } = await supabase.auth.signInWithPassword({ email: normalized, password });
+    if (error) {
+      if (error.code === "email_not_confirmed" || error.message.toLowerCase().includes("not confirmed")) {
+        storage.write("pending-email", normalized);
+        await remoteAuth.resend(normalized).catch(() => undefined);
+        return null;
+      }
+      throw new Error(translate(error.message));
+    }
+    return remember(await profileFor(data.user));
+  },
+};
+
+const connectedAuthService = {
+  /** True when accounts live in Supabase and codes are really emailed. */
+  isRemote: supabase !== null,
+  /** Restores the session on page load. */
+  async init(): Promise<User | null> {
+    const stored = this.getUser();
+    if (!supabase || stored?.isGuest) return stored;
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      if (stored) storage.remove("user");
+      return null;
+    }
+    return remember(await profileFor(data.session.user));
+  },
+  onSignedOut(callback: () => void) {
+    if (!supabase) return () => undefined;
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") callback();
+    });
+    return () => data.subscription.unsubscribe();
+  },
+  async resendCode() {
+    const email = this.pendingEmail();
+    if (email && supabase) await remoteAuth.resend(email);
+  },
   getUser() {
     const value = storage.read("user");
     return isUser(value) ? value : null;
@@ -74,7 +176,9 @@ export const authService = {
     storage.write("guest", user);
     return remember(user);
   },
-  async register({ name, email, password }: RegisterCredentials) {
+  async register(credentials: RegisterCredentials) {
+    if (supabase) return remoteAuth.register(credentials);
+    const { name, email, password } = credentials;
     const list = accounts();
     const normalized = email.trim().toLowerCase();
     if (list.some((account) => account.user.email === normalized))
@@ -101,6 +205,8 @@ export const authService = {
     return typeof value === "string" ? value : null;
   },
   async verify(code: string) {
+    const pending = this.pendingEmail();
+    if (supabase && pending) return remoteAuth.verify(code, pending);
     if (code !== DEMO_CODE)
       throw new Error("Код не подходит. Проверьте все шесть цифр.");
     const list = accounts();
@@ -114,7 +220,9 @@ export const authService = {
     storage.remove("pending-email");
     return remember(account.user);
   },
-  async login({ email, password }: LoginCredentials) {
+  async login(credentials: LoginCredentials) {
+    if (supabase) return remoteAuth.login(credentials);
+    const { email, password } = credentials;
     const account = accounts().find(
       (item) => item.user.email === email.trim().toLowerCase(),
     );
@@ -131,5 +239,35 @@ export const authService = {
   },
   logout() {
     storage.remove("user");
+    void supabase?.auth.signOut();
   },
 };
+
+
+const mockAuthService = {
+  isRemote: false,
+  getUser: currentUser,
+  async init() { return currentUser(); },
+  onSignedOut(callback: () => void) { void callback; return () => undefined; },
+  guest() {
+    const previous = storage.read("guest");
+    const user: User = {
+      id: isRecord(previous) && typeof previous.id === "string" ? previous.id : crypto.randomUUID(),
+      name: "Гость", isGuest: true,
+    };
+    storage.write("guest", user);
+    return remember(user);
+  },
+  async login({ email: login, password }: LoginCredentials): Promise<User> {
+    if (login.trim() !== MOCK_CREDENTIALS.login || password !== MOCK_CREDENTIALS.password)
+      throw new Error("Неверный логин или пароль.");
+    return remember({ id: MOCK_CREDENTIALS.userId, name: MOCK_CREDENTIALS.login, isGuest: false, role: "user", authProvider: "mock" });
+  },
+  async register(credentials: RegisterCredentials): Promise<void> { void credentials; throw new Error("Регистрация временно недоступна. Используйте тестовый вход."); },
+  async verify(code: string): Promise<User> { void code; throw new Error("Подтверждение email временно недоступно."); },
+  async resendCode() {},
+  pendingEmail: () => null,
+  logout() { storage.remove("user"); },
+};
+
+export const authService = MOCK_AUTH_ENABLED ? mockAuthService : connectedAuthService;

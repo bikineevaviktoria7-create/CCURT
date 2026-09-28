@@ -30,7 +30,7 @@ export function Page({
         Перейти к содержимому
       </a>
       <header className="site-header page-container">
-        <Logo to={user ? ROUTES.dashboard : ROUTES.home} />
+        <Logo to={user && !user.isGuest ? ROUTES.dashboard : ROUTES.home} />
         <span className="header-description">Русский жестовый язык</span>
         <nav aria-label="Основная навигация" className="header-actions">
           {user ? (

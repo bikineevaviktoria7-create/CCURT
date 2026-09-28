@@ -1,16 +1,18 @@
+import { accountId, setMockAccount } from "./helpers/mockAccount.ts";
+beforeEach(setMockAccount);
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { beforeEach, test } from "node:test";
 import {
   initialSession,
   lessonSessionReducer,
-} from "../src/lib/lessonSession.ts";
+} from "../src/hooks/useLessonSession.ts";
 import {
   calculateLessonResult,
   emptyProgress,
   lessonStatus,
   progressService,
 } from "../src/services/progressService.ts";
-import { mockLessons } from "../src/data/mockLessons.ts";
+import { lessons as mockLessons } from "../src/data/lessons.ts";
 import type { GestureAttempt } from "../src/types/progress.ts";
 
 const correct: GestureAttempt = {
@@ -25,7 +27,7 @@ const correct: GestureAttempt = {
 test("all theory is required before practice; practice never returns to theory", () => {
   let state = initialSession(1000);
   assert.equal(
-    lessonSessionReducer(state, { type: "START_PRACTICE", now: 2000 }),
+    lessonSessionReducer(state, { type: "START_PRACTICE" }),
     state,
   );
   for (let index = 0; index < 3; index++) {
@@ -34,7 +36,7 @@ test("all theory is required before practice; practice never returns to theory",
     state = lessonSessionReducer(state, { type: "NEXT_THEORY", total: 3 });
   }
   assert.equal(state.phase, "ready");
-  state = lessonSessionReducer(state, { type: "START_PRACTICE", now: 2000 });
+  state = lessonSessionReducer(state, { type: "START_PRACTICE" });
   for (let index = 0; index < 3; index++) {
     assert.equal(state.phase, "practice");
     assert.equal(state.currentGestureIndex, index);
@@ -50,7 +52,6 @@ test("all theory is required before practice; practice never returns to theory",
     state = lessonSessionReducer(state, {
       type: "ADVANCE",
       total: 3,
-      now: 3000 + index * 2000,
     });
   }
   assert.equal(state.phase, "completed");
@@ -78,17 +79,37 @@ test("scoring penalizes corrections and skips deterministically", () => {
   assert.equal(skipped.stars, 1);
 });
 
-test("completion persists once and unlocks only the next lesson", () => {
+test("completion persists once and keeps all other lessons available", () => {
   const result = calculateLessonResult("1", [correct], 0, "unique-session");
   const initial = emptyProgress();
   const first = mockLessons[0]!;
   const second = mockLessons[1]!;
   assert.equal(lessonStatus(first, mockLessons, initial), "current");
-  assert.equal(lessonStatus(second, mockLessons, initial), "locked");
-  progressService.completeLesson("test-user", result);
-  const persisted = progressService.completeLesson("test-user", result);
+  assert.equal(lessonStatus(second, mockLessons, initial), "available");
+  progressService.completeLesson(accountId, result);
+  const persisted = progressService.completeLesson(accountId, result);
   assert.equal(persisted.sessions.length, 1);
   assert.equal(lessonStatus(first, mockLessons, persisted), "completed");
   assert.equal(lessonStatus(second, mockLessons, persisted), "current");
-  assert.equal(lessonStatus(mockLessons[2]!, mockLessons, persisted), "locked");
+  assert.equal(lessonStatus(mockLessons[2]!, mockLessons, persisted), "available");
+});
+
+import { buildNameGestures, personalizeLesson } from "../src/lib/nameLesson.ts";
+import { findLetterByLabel } from "../src/data/alphabet.ts";
+
+test("own-name lesson spells the name and skips unsupported letters", () => {
+  const anna = buildNameGestures("Анна Иванова", findLetterByLabel, null);
+  assert.deepEqual(anna.letters.map((letter) => letter.label), ["А", "Н", "Н", "А"]);
+  assert.deepEqual(anna.skipped, []);
+  const kazakh = buildNameGestures("Әлия", findLetterByLabel, null);
+  assert.deepEqual(kazakh.skipped, ["Ә"]);
+  assert.deepEqual(kazakh.letters.map((letter) => letter.label), ["Л", "И", "Я"]);
+  const onlyRecorded = buildNameGestures("Анна", findLetterByLabel, new Set(["letter-1"]));
+  assert.deepEqual(onlyRecorded.skipped, ["Н"]);
+
+  const lesson = mockLessons.find((item) => item.personalized === "name")!;
+  const personal = personalizeLesson(lesson, anna);
+  assert.equal(personal.gestures.length, lesson.gestures.length + 4);
+  assert.equal(personal.theoryGestures?.length, lesson.gestures.length + 2);
+  assert.equal(personalizeLesson(lesson, null).needsName, true);
 });

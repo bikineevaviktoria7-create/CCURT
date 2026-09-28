@@ -4,6 +4,7 @@ export interface User {
   email?: string;
   isGuest: boolean;
   role?: 'user' | 'admin';
+  authProvider?: 'mock' | 'remote';
 }
 
 export interface LoginCredentials {
@@ -18,6 +19,7 @@ export interface RegisterCredentials extends LoginCredentials {
 export interface UserSettings {
   dominantHand: 'right' | 'left';
   soundEnabled: boolean;
+  speechEnabled: boolean;
   vibrationEnabled: boolean;
   calibrationCompleted: boolean;
 }

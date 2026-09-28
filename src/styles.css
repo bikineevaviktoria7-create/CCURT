@@ -1748,3 +1748,347 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- Admin panel: gesture samples ---------- */
+.admin-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.admin {
+  display: grid;
+  gap: 1.5rem;
+}
+.admin-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1rem;
+}
+.admin-header h1 {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 800;
+}
+.admin-header p {
+  color: var(--color-text-secondary);
+}
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.admin-import {
+  cursor: pointer;
+}
+.admin-grid {
+  display: grid;
+  grid-template-columns: minmax(12rem, 16rem) 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+.admin-list {
+  padding: 1rem;
+  max-height: 78vh;
+  overflow: auto;
+}
+.admin-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.admin-tabs button {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  font-weight: 700;
+}
+.admin-tabs button.active {
+  background: var(--color-primary);
+  color: #fff;
+}
+.admin-list ul {
+  display: grid;
+  gap: 0.25rem;
+}
+.admin-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 2.4rem 1fr auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-control);
+  text-align: left;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.admin-item:hover {
+  background: var(--color-surface-muted);
+}
+.admin-item.active {
+  background: var(--color-primary-soft);
+}
+.admin-item strong {
+  font-size: 1.1rem;
+}
+.admin-item span {
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+.admin-item .admin-count {
+  min-width: 1.6rem;
+  text-align: center;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  font-weight: 700;
+}
+.admin-item.empty .admin-count {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+.admin-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.admin-camera {
+  display: grid;
+  gap: 0.75rem;
+}
+.admin-countdown {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 6rem;
+  font-weight: 800;
+  color: var(--color-camera-text);
+  text-shadow: 0 4px 24px rgb(0 0 0 / 0.4);
+}
+.admin-progress {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  overflow: hidden;
+}
+.admin-progress span {
+  display: block;
+  height: 100%;
+  background: var(--color-primary);
+  transition: width var(--duration-fast) linear;
+}
+.admin-panel {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1.5rem;
+}
+.admin-panel h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.admin-tip,
+.admin-panel small {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+.admin-review {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+}
+.admin-review img {
+  width: 10rem;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--radius-control);
+}
+.admin-readout {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: var(--radius-control);
+  background: var(--color-primary-soft);
+}
+.admin-readout ol {
+  padding-left: 1.2rem;
+  list-style: decimal;
+}
+.admin-hint {
+  font-weight: 700;
+}
+.admin-tolerance,
+.admin-description {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+.admin-description textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  font: inherit;
+  font-weight: 400;
+}
+@media (max-width: 1100px) {
+  .admin-main {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 760px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-list {
+    max-height: 16rem;
+  }
+}
+
+/* ---------- Own-name lesson ---------- */
+.name-step {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 32rem;
+  margin: 0 auto 1.5rem;
+  padding: 1.25rem 1.5rem;
+  text-align: left;
+}
+.name-step h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+/* ---------- Progress insights, leaderboard, settings ---------- */
+.streak {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--color-warning);
+  font-weight: 700;
+}
+.progress-insights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+.chart-card {
+  padding: 1.25rem;
+}
+.progress-chart svg {
+  display: block;
+  width: 100%;
+  max-width: 460px;
+  height: auto;
+  margin: 0 auto 0.5rem;
+}
+.progress-chart figcaption,
+.chart-empty {
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+.chart-grid {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+.chart-label {
+  fill: var(--color-text-secondary);
+  font-size: 9px;
+}
+.chart-area {
+  fill: var(--color-primary-soft);
+}
+.chart-line {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.chart-dot {
+  fill: var(--color-surface);
+  stroke: var(--color-primary);
+  stroke-width: 2;
+}
+.leaderboard {
+  padding: 1.25rem;
+  display: grid;
+  gap: 0.75rem;
+}
+.leaderboard h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 800;
+}
+.leaderboard ol {
+  display: grid;
+  gap: 0.35rem;
+}
+.leaderboard li {
+  display: grid;
+  grid-template-columns: 1.8rem 1fr auto auto;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-control);
+}
+.leaderboard li.me {
+  background: var(--color-primary-soft);
+}
+.leader-rank {
+  font-weight: 800;
+  color: var(--color-primary);
+}
+.leader-lessons {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+.settings-panel {
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.25rem;
+}
+.settings-panel summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.settings-grid fieldset {
+  display: grid;
+  gap: 0.4rem;
+}
+.settings-grid legend {
+  font-weight: 700;
+  margin-bottom: 0.3rem;
+}
+.setting-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.setting-toggle input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--color-primary);
+}
+
+@media (max-width: 600px) {
+  .admin-link-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}

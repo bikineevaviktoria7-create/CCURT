@@ -1,7 +1,18 @@
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, CameraOff, Expand, ShieldCheck } from "lucide-react";
 import { useCamera, cameraMessages } from "../../hooks/useCamera";
-import { useRecognition } from "../../hooks/useRecognition";
+import {
+  useRecognition,
+  type RecognitionConfig,
+} from "../../hooks/useRecognition";
+import { useGestureLibrary } from "../../services/gestureLibrary";
+import { useSettings } from "../../services/settingsService";
+import {
+  recognitionTolerance,
+  visionMode,
+} from "../../services/gestureLibrary";
+import { hasModel } from "../../vision/recognizer";
+import { feedback } from "../../lib/feedback";
 import { GestureReference } from "../lessons/GestureReference";
 import { GestureFeedback } from "../feedback/GestureFeedback";
 import { Button } from "../common/Button";
@@ -15,22 +26,72 @@ export function PracticeGesture({
   onAccept,
   transitioning,
   paused,
+  targetKey,
+  exercise,
 }: {
   gesture: Gesture;
   onAccept(attempt: GestureAttempt): void;
   transitioning: boolean;
   paused: boolean;
+  targetKey?: string | number;
+  exercise?: "hand-visibility";
 }) {
   const camera = useCamera();
   const canvas = useRef<HTMLCanvasElement>(null);
   const [modal, setModal] = useState<"skip" | "reference" | null>(null);
+  const [forceDemo, setForceDemo] = useState(false);
+  const settings = useSettings();
+  const vision = useGestureLibrary(!exercise);
+  const context = vision.library;
+  const hasSamples = Boolean(
+    context &&
+      hasModel({
+        targetId: gesture.id,
+        targetKind: gesture.kind,
+        staticModels: context.staticModels,
+        dynamicModels: context.dynamicModels,
+      }),
+  );
+  const config = useMemo<RecognitionConfig>(
+    () => ({
+      mode: import.meta.env.DEV && !exercise && (forceDemo || visionMode === "mock") ? "demo" : "real",
+      enabled: camera.status === "ready" || (import.meta.env.DEV && !exercise && forceDemo),
+      targetKey,
+      options: {
+        exercise,
+        labels: context?.labels ?? {},
+        staticModels: context?.staticModels ?? new Map(),
+        dynamicModels: context?.dynamicModels ?? new Map(),
+        dominantHand: settings.dominantHand,
+        tolerance: recognitionTolerance(context),
+        customHints: context?.content[gesture.id]?.hints,
+      },
+    }),
+    [forceDemo, context, settings.dominantHand, gesture.id, camera.status, targetKey, exercise],
+  );
+  const demo = config.mode === "demo";
   const recognition = useRecognition(
     gesture,
     camera.videoRef,
     canvas,
     onAccept,
     paused || modal !== null,
+    config,
   );
+  const { start, running, modelError } = recognition;
+  // Real recognition starts by itself as soon as the camera is ready.
+  useEffect(() => {
+    if (!demo && camera.status === "ready" && !running && !modelError) start();
+  }, [demo, camera.status, running, modelError, start]);
+  const status = recognition.result.status;
+  const message = recognition.result.message;
+  useEffect(() => {
+    if (status === "success")
+      feedback.success(gesture.category === "letter" ? `Буква ${gesture.label}` : gesture.label);
+  }, [status, gesture.category, gesture.label]);
+  useEffect(() => {
+    if ((status === "almost" || status === "incorrect") && message) feedback.hint();
+  }, [status, message]);
   const failure =
     camera.status !== "loading" && camera.status !== "ready"
       ? cameraMessages[camera.status]
@@ -41,17 +102,17 @@ export function PracticeGesture({
         <div>
           <span className="eyebrow">Практика</span>
           <h1>
-            Покажите{" "}
-            {gesture.category === "letter"
+            {exercise ? "Удержите руку в кадре" : "Покажите "}
+            {!exercise && (gesture.category === "letter"
               ? `букву ${gesture.label}`
-              : `«${gesture.label}»`}
+              : `«${gesture.label}»`)}
           </h1>
         </div>
-        <span className="demo-badge">Демонстрация распознавания</span>
+        {demo && <span className="demo-badge">Демонстрация распознавания</span>}
       </div>
       <div className="practice-grid">
         <aside className="target-card card">
-          <span className="eyebrow">Ваш жест</span>
+          <span className="eyebrow">{exercise ? "Ваша задача" : "Ваш жест"}</span>
           <h2>{gesture.title}</h2>
           <GestureReference gesture={gesture} />
           <button
@@ -74,7 +135,7 @@ export function PracticeGesture({
             />
             <canvas
               ref={canvas}
-              aria-label="Схема подсветки руки в демонстрации, не эталон РЖЯ"
+              aria-label="Скелет обнаруженной руки и подсветка ошибок"
             />
             <span className="camera-badge">
               <Camera size={14} />
@@ -83,7 +144,7 @@ export function PracticeGesture({
                 : "Камера выключена"}
             </span>
             <span className="safe-zone" aria-hidden="true" />
-            {!recognition.running && (
+            {(camera.status !== "ready" || !recognition.running) && (
               <div
                 className={`camera-center ${camera.status === "ready" ? "is-ready" : ""}`}
               >
@@ -114,9 +175,11 @@ export function PracticeGesture({
                 )}
               </div>
             )}
-            {recognition.running && (
+            {recognition.running && camera.status === "ready" && (
               <span className="camera-caption">
-                Схема подсветки · не эталон жеста
+                {demo
+                  ? "Схема подсветки · не эталон жеста"
+                  : "Распознавание работает на вашем устройстве"}
               </span>
             )}
           </div>
@@ -124,17 +187,20 @@ export function PracticeGesture({
             <ShieldCheck size={16} />
             Изображение с камеры не отправляется на сервер.
           </p>
+          {!exercise && vision.status === "error" && <div className="notice" role="alert">Не удалось загрузить эталоны. <Button variant="secondary" onClick={vision.retry}>Загрузить снова</Button></div>}
+          {recognition.modelLoading && camera.status === "ready" && <p role="status">Загружаем распознавание…</p>}
           {recognition.modelError && (
             <div className="notice" role="alert">
-              Не удалось запустить распознавание.{" "}
+              Не удалось запустить распознавание. Попробуйте снова.{" "}
               <Button variant="secondary" onClick={recognition.start}>
                 Повторить
-              </Button>
+              </Button>{" "}
+
             </div>
           )}
         </section>
         <aside className="feedback-column">
-          <GestureFeedback result={recognition.result} />
+          <GestureFeedback result={recognition.result} demo={demo} handVisibility={Boolean(exercise)} />
           <p className="feedback-note">
             Одна подсказка за раз.
             <br />
@@ -144,23 +210,22 @@ export function PracticeGesture({
       </div>
       <div className="practice-controls">
         <div className="demo-controls">
-          <p>
-            Реальное распознавание ещё не подключено. Демо показывает подсказку,
-            исправление и успех по сценарию.
-          </p>
-          {!recognition.running && (
-            <Button onClick={recognition.start}>Запустить демонстрацию</Button>
+          <p>{exercise ? "Тест обнаружения руки. Он не оценивает правильность жеста РЖЯ."
+            : vision.status === "loading" ? "Загружаем эталоны жестов…"
+            : !hasSamples ? "Проверенные эталоны этого жеста ещё не добавлены. Камера показывает руку, оценка жеста недоступна."
+            : "Держите руку полностью в кадре и сравнивайте с эталоном."}</p>
+          {import.meta.env.DEV && !exercise && (
+            <>
+              <Button variant="secondary" onClick={() => setForceDemo(!forceDemo)}>
+                {forceDemo ? "Вернуться к камере" : "Симулятор · разработка"}
+              </Button>
+              {demo && !recognition.running && <Button onClick={recognition.start}>Запустить демонстрацию</Button>}
+            </>
           )}
         </div>
-        <Button
-          variant="ghost"
-          disabled={transitioning}
-          onClick={() => setModal("skip")}
-        >
-          Пропустить жест
-        </Button>
+        {!exercise && <Button variant="ghost" disabled={transitioning} onClick={() => setModal("skip")}>Пропустить жест</Button>}
       </div>
-      {import.meta.env.DEV && recognition.running && (
+      {import.meta.env.DEV && recognition.running && recognition.canSimulate && (
         <details className="dev-panel">
           <summary>Симулятор состояний · разработка</summary>
           <div className="dev-actions">
