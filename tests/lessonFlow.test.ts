@@ -113,3 +113,15 @@ test("own-name lesson spells the name and skips unsupported letters", () => {
   assert.equal(personal.theoryGestures?.length, lesson.gestures.length + 2);
   assert.equal(personalizeLesson(lesson, null).needsName, true);
 });
+
+test("alphabet section teaches all 33 letters, three new letters per learning lesson", () => {
+  const alphabetLessons = mockLessons.filter((lesson) => lesson.sectionId === "alphabet");
+  assert.equal(alphabetLessons.length, 16);
+  const learned = new Set(
+    alphabetLessons.filter((lesson) => lesson.type === "learning").flatMap((lesson) => lesson.gestures.map((gesture) => gesture.label)),
+  );
+  assert.equal(learned.size, 33);
+  for (const lesson of alphabetLessons.filter((item) => item.type === "learning"))
+    assert.equal(lesson.gestures.length, 3, `lesson ${lesson.title}`);
+  assert.equal(new Set(mockLessons.map((lesson) => lesson.id)).size, mockLessons.length, "lesson ids are unique");
+});

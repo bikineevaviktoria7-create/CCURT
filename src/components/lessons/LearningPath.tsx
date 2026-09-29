@@ -7,6 +7,13 @@ import type { Lesson } from "../../types/lesson";
 import type { LearningProgress } from "../../types/progress";
 
 const offsets = [0, -45, 0, 45];
+function lessonsCount(count: number) {
+  const tens = count % 100;
+  const ones = count % 10;
+  const word = tens >= 11 && tens <= 14 ? "уроков" : ones === 1 ? "урок" : ones >= 2 && ones <= 4 ? "урока" : "уроков";
+  return `${count} ${word}`;
+}
+
 export function LearningPath({
   lessons,
   progress,
@@ -29,7 +36,7 @@ export function LearningPath({
             <div className="path-section-heading">
               <span className="section-number">0{section.number}</span>
               <div>
-                <p className="eyebrow">10 уроков · шаг за шагом</p>
+                <p className="eyebrow">{lessonsCount(items.length)} · шаг за шагом</p>
                 <h2 id={`section-${section.id}`}>
                   {section.id === "alphabet"
                     ? "Изучение алфавита"
@@ -44,6 +51,7 @@ export function LearningPath({
                 const x = 80 + (offsets[index % offsets.length] ?? 0);
                 const nextX = 80 + (offsets[(index + 1) % offsets.length] ?? 0);
                 const repetition = section.id === "alphabet" && index === 5;
+                const moreLetters = section.id === "alphabet" && index === 10;
                 const contents = (
                   <>
                     <span className={`lesson-circle ${status}`}>
@@ -99,11 +107,16 @@ export function LearningPath({
                 return (
                   <li
                     key={lesson.id}
-                    className={`path-item ${repetition ? "repetition-start" : ""}`}
+                    className={`path-item ${repetition || moreLetters ? "repetition-start" : ""}`}
                   >
                     {repetition && (
                       <span className="repetition-label">
                         Теперь закрепим знания
+                      </span>
+                    )}
+                    {moreLetters && (
+                      <span className="repetition-label">
+                        Остальные буквы алфавита
                       </span>
                     )}
                     {index < items.length - 1 && (
@@ -151,7 +164,7 @@ export function LearningPath({
       })}
       <div className="path-finish">
         <Star size={21} />
-        <p>20 шагов к большему пониманию</p>
+        <p>{lessons.length} шагов к большему пониманию</p>
       </div>
     </div>
   );

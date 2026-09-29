@@ -37,12 +37,15 @@ async function loadContent(): Promise<Record<string, GestureContent>> {
 
 function withContent(gesture: Gesture, content: Record<string, GestureContent>): Gesture {
   const item = content[gesture.id];
-  gesture = { ...gesture, referenceMedia: gestureReferences[gesture.id] ?? gesture.referenceMedia };
+  // The dactyl chart drawings are the reference; a photo from the admin panel is
+  // only a fallback for gestures that have no drawing (words).
+  const drawing = gestureReferences[gesture.id];
+  gesture = { ...gesture, referenceMedia: drawing ?? gesture.referenceMedia };
   if (!item) return gesture;
   return {
     ...gesture,
     description: item.description?.trim() || gesture.description || PLACEHOLDER_DESCRIPTION,
-    ...(item.imageUrl
+    ...(!drawing && item.imageUrl
       ? { referenceMedia: { kind: "image" as const, src: item.imageUrl, alt: `Жест «${gesture.label}»` } }
       : {}),
   };

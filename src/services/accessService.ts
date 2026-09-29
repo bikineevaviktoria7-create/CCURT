@@ -21,7 +21,23 @@ export function currentUser(): User | null {
 }
 
 export const canUsePlatform = (user: User | null) => Boolean(user && !user.isGuest);
-export const canUseAdmin = (user: User | null) => Boolean(user && !user.isGuest && user.role === "admin" && user.authProvider !== "mock");
+/**
+ * Local recording mode: while the app runs from `npm run dev`, the signed-in team
+ * account may open /admin to record reference samples into this browser and export
+ * them to public/data/samples.json. Production builds never enable it.
+ */
+function localRecordingMode() {
+  const env = (import.meta as { env?: { DEV?: boolean } }).env;
+  return env?.DEV === true;
+}
+
+export const canUseAdmin = (user: User | null) =>
+  Boolean(
+    user &&
+      !user.isGuest &&
+      ((user.role === "admin" && user.authProvider !== "mock") ||
+        (user.authProvider === "mock" && localRecordingMode())),
+  );
 export const canReadProgress = (userId: string) => {
   const user = currentUser();
   return canUsePlatform(user) && user?.id === userId;

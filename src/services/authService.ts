@@ -99,14 +99,10 @@ const remoteAuth = {
   async register({ name, email, password }: RegisterCredentials) {
     if (!supabase) throw new Error("Сервер не настроен");
     const normalized = email.trim().toLowerCase();
-    const redirectTo = `${window.location.origin}/auth/callback`;
     const { data, error } = await supabase.auth.signUp({
       email: normalized,
       password,
-      options: {
-        data: { name: name.trim() },
-        emailRedirectTo: redirectTo,
-      },
+      options: { data: { name: name.trim() } },
     });
     if (error) throw new Error(translate(error.message));
     // With email confirmation on, an existing address returns a user without identities.
@@ -134,7 +130,8 @@ const remoteAuth = {
     if (error) {
       if (error.code === "email_not_confirmed" || error.message.toLowerCase().includes("not confirmed")) {
         storage.write("pending-email", normalized);
-        throw new Error("Email ещё не подтверждён. Проверьте письмо в почте и подтвердите аккаунт, затем войдите снова.");
+        await remoteAuth.resend(normalized).catch(() => undefined);
+        return null;
       }
       throw new Error(translate(error.message));
     }

@@ -18,6 +18,7 @@ import { useCamera, cameraMessages } from "../hooks/useCamera";
 import { useHandTracking, type TrackedFrame } from "../hooks/useHandTracking";
 import { useGestureLibrary } from "../services/gestureLibrary";
 import { allGestures } from "../data/lessons";
+import { gestureReferences } from "../data/gestureReferences";
 import { canUseAdmin } from "../services/accessService";
 import { captureHandPhoto } from "../lib/capturePhoto";
 import {
@@ -140,7 +141,6 @@ function AdminWorkspace({ isAdmin }: { isAdmin: boolean }) {
     samples: [] as SampleInput[],
     lastAt: 0,
     startedAt: 0,
-    photoTaken: false,
     wantPhoto: false,
     segmenter: new MotionSegmenter(),
     lastReadout: 0,
@@ -198,10 +198,6 @@ function AdminWorkspace({ isAdmin }: { isAdmin: boolean }) {
           landmarks: { image: frame.hand.image, world: frame.hand.world },
           handedness: frame.hand.hand,
         });
-        if (state.samples.length === Math.ceil(STATIC_SAMPLES / 2) && !state.photoTaken) {
-          state.photoTaken = true;
-          takePhoto(frame.hand);
-        }
         setProgress(state.samples.length / STATIC_SAMPLES);
         if (state.samples.length >= STATIC_SAMPLES) {
           // Copy before clearing: the state updater runs later.
@@ -224,10 +220,6 @@ function AdminWorkspace({ isAdmin }: { isAdmin: boolean }) {
           if (frame.t - state.lastProgressAt >= 100) {
             state.lastProgressAt = frame.t;
             setProgress(state.segmenter.progress(frame.t));
-          }
-          if (!state.photoTaken && frame.hand && state.segmenter.progress(frame.t) > 0.2) {
-            state.photoTaken = true;
-            takePhoto(frame.hand);
           }
         } else if (!done && frame.t - state.startedAt > DYNAMIC_WAIT_MS) {
           setMode("idle");
@@ -344,7 +336,6 @@ function AdminWorkspace({ isAdmin }: { isAdmin: boolean }) {
         state.lastAt = 0;
         state.startedAt = performance.now();
         state.lastProgressAt = state.startedAt;
-        state.photoTaken = photo !== null;
         state.segmenter.reset();
         setProgress(0);
         setMode("recording");
@@ -495,6 +486,17 @@ function AdminWorkspace({ isAdmin }: { isAdmin: boolean }) {
                   <span style={{ width: `${Math.round(progress * 100)}%` }} />
                 </div>
               )}
+              {gestureReferences[gesture.id] && (
+                <figure className="admin-reference card">
+                  <img
+                    src={gestureReferences[gesture.id]?.src}
+                    alt={gestureReferences[gesture.id]?.alt ?? ""}
+                  />
+                  <figcaption>
+                    <strong>Повторите позу с картинки.</strong> {gesture.description}
+                  </figcaption>
+                </figure>
+              )}
             </div>
 
             <div className="admin-panel card">
@@ -509,8 +511,8 @@ function AdminWorkspace({ isAdmin }: { isAdmin: boolean }) {
               </p>
               <p className="admin-tip">
                 {gesture.kind === "static"
-                  ? `Нажмите «Записать», после отсчёта держите жест неподвижно ~3 с — сохранится ${STATIC_SAMPLES} примеров и фото.`
-                  : "Нажмите «Записать», после отсчёта покажите жест целиком и опустите руку. Запишите 5 повторов."}
+                  ? `Нажмите «Записать», после отсчёта держите жест неподвижно ~3 с — сохранится ${STATIC_SAMPLES} примеров. Сохраняются только координаты пальцев, без фото.`
+                  : "Нажмите «Записать», после отсчёта покажите жест целиком и опустите руку. Запишите 5 повторов. Сохраняется только движение пальцев, без фото."}
               </p>
               <div className="action-row">
                 <Button
@@ -528,7 +530,6 @@ function AdminWorkspace({ isAdmin }: { isAdmin: boolean }) {
                     clearCountdown();
                     setPhoto(null);
                     const state = recording.current;
-                    state.photoTaken = false;
                     let value = 3;
                     setCountdown(value);
                     setMode("countdown");
@@ -543,7 +544,7 @@ function AdminWorkspace({ isAdmin }: { isAdmin: boolean }) {
                     }, 800);
                   }}
                 >
-                  Переснять фото
+                  {photo ? "Переснять фото" : "Сделать фото (по желанию)"}
                 </Button>
                 <Button
                   variant={mode === "test" ? "primary" : "ghost"}

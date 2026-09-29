@@ -11,13 +11,24 @@ export const lessonSections: readonly LessonSection[] = [
 
 const alphabetTitles = [
   "Первые буквы", "Продолжаем", "Новые формы", "Положение ладони", "Завершаем набор",
-  "Повторение I", "Повторение II", "Повторение III", "Смешанная практика", "Итог: Алфавит",
+  "Повторение I", "Повторение II", "Повторение III", "Смешанная практика", "Итог: первые 15 букв",
 ];
 
 const alphabetGroups = [
   ["А", "Б", "В"], ["Г", "Е", "И"], ["Л", "М", "Н"], ["О", "П", "С"], ["Т", "У", "Ш"],
   ["А", "Б", "В", "Г", "Е"], ["И", "Л", "М", "Н", "О"], ["П", "С", "Т", "У", "Ш"],
   ["А", "И", "М", "П", "Ш"], ["Б", "Г", "Л", "О", "Т"],
+];
+
+// The remaining 18 letters: first the static ones grouped by similar hand shapes,
+// then letters with a movement (several of them are a known shape + movement).
+const moreAlphabetLessons: { id: string; title: string; description: string; labels: string[] }[] = [
+  { id: "21", title: "Согнутые пальцы", description: "Пальцы согнуты под прямым углом: Ж, Ф, Ч.", labels: ["Ж", "Ф", "Ч"] },
+  { id: "22", title: "Кольцо, рожки, скрещивание", description: "Новые формы кисти: Р, Ы, Я.", labels: ["Р", "Ы", "Я"] },
+  { id: "23", title: "Крючок и полукольцо", description: "Изогнутые пальцы: Х, Э, Ю.", labels: ["Х", "Э", "Ю"] },
+  { id: "24", title: "Буквы с движением", description: "Рука рисует букву в воздухе: Д, З, Ц.", labels: ["Д", "З", "Ц"] },
+  { id: "25", title: "Знакомые формы в движении", description: "Е, И, Ш с движением превращаются в Ё, Й, Щ.", labels: ["Ё", "Й", "Щ"] },
+  { id: "26", title: "К и знаки", description: "Короткие движения кистью: К, Ь, Ъ.", labels: ["К", "Ь", "Ъ"] },
 ];
 
 const wordDefinitions = [
@@ -60,6 +71,10 @@ export const lessons: readonly Lesson[] = [
     description: index < 5 ? "Познакомьтесь с новой группой букв." : "Закрепите буквы из предыдущих занятий.",
     type: index < 5 ? "learning" : "practice", estimatedMinutes: 5,
     gestures: letters(alphabetGroups[index] ?? []),
+  })),
+  ...moreAlphabetLessons.map<Lesson>(({ id, title, description, labels }, index) => ({
+    id, sectionId: "alphabet", number: alphabetTitles.length + index + 1, title, description,
+    type: "learning", estimatedMinutes: 5, gestures: letters(labels),
   })),
   ...wordLessonDefinitions.map<Lesson>(({ title, slugs, personalized }, index) => ({
     id: String(index + 11), sectionId: "words", number: index + 1, title,

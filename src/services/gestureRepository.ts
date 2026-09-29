@@ -268,7 +268,11 @@ export const gestureRepository = {
     });
   },
 
-  /** Everything needed to restore recognition: goes to public/data/samples.json. */
+  /**
+   * Everything needed to restore recognition: goes to public/data/samples.json.
+   * Photos are left out on purpose: the file is public after deploy, and
+   * recognition needs only hand coordinates.
+   */
   async exportBundle(tolerance?: number): Promise<GestureBundle> {
     requireAdmin();
     const { samples, content } = await loadAll();
@@ -276,7 +280,7 @@ export const gestureRepository = {
       version: GESTURE_BUNDLE_VERSION,
       exportedAt: new Date().toISOString(),
       ...(tolerance ? { tolerance } : {}),
-      gestures: Object.values(content),
+      gestures: Object.values(content).map((item) => ({ ...item, imageUrl: undefined })),
       samples: samples.map((sample) => ({ ...sample, landmarks: sample.landmarks ?? undefined })),
     };
   },

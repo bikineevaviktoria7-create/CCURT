@@ -1,12 +1,12 @@
 import { createBrowserRouter } from "react-router-dom";
 import { LandingPage } from "../pages/LandingPage";
 import { AuthPage } from "../pages/AuthPage";
+import { Navigate } from "react-router-dom";
 import { DashboardPage } from "../pages/DashboardPage";
 import { LessonOverviewPage } from "../pages/LessonOverviewPage";
 import { ProtectedRoutes, AdminRoutes, PreviewRoutes } from "../components/layout/ProtectedRoutes";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { ErrorFallback } from "../components/common/ErrorBoundary";
-import { AuthCallbackPage } from "../pages/AuthCallbackPage";
 import { ROUTES } from "./constants";
 
 export const router = createBrowserRouter([
@@ -27,12 +27,7 @@ export const router = createBrowserRouter([
   },
   {
     path: ROUTES.verifyEmail,
-    element: <AuthCallbackPage />,
-    errorElement: <ErrorFallback />,
-  },
-  {
-    path: "/auth/callback",
-    element: <AuthCallbackPage />,
+    element: <Navigate to={ROUTES.login} replace />,
     errorElement: <ErrorFallback />,
   },
   {

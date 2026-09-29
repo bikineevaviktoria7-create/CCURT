@@ -7,7 +7,7 @@ import { calculateLessonResult, emptyProgress, progressService } from "../src/se
 import { previewExercise, previewService } from "../src/services/previewService.ts";
 import type { GestureAttempt } from "../src/types/progress.ts";
 
-beforeEach(() => { setMockAccount(); storage.remove("preview:completed"); });
+beforeEach(() => { setMockAccount(); previewService.reset(); });
 const attempt: GestureAttempt = { gestureId: previewExercise.id, mode: "real", success: true, skipped: false, errorCodes: [], durationMs: 1500 };
 
 test("guest cannot read or mutate registered progress, regular lessons, or admin data", () => {
@@ -41,4 +41,13 @@ test("preview accepts only one real hand-visibility attempt and never creates le
   assert.equal(storage.read("progress:guest"), undefined);
   setMockAccount();
   assert.equal(previewService.getResult(), undefined);
+});
+
+test("preview result is kept only in memory and is gone after a reload", () => {
+  storage.write("user", { id: "guest", name: "Guest", isGuest: true });
+  assert.equal(previewService.complete(attempt), true);
+  assert.equal(storage.read("preview:completed"), undefined, "nothing is written to localStorage");
+  previewService.reset(); // what a page reload does to the in-memory state
+  assert.equal(previewService.getResult(), undefined);
+  assert.equal(previewService.complete(attempt), true, "the preview can be passed again");
 });
