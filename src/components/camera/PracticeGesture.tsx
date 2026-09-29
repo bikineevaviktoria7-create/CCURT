@@ -179,7 +179,7 @@ export function PracticeGesture({
               <span className="camera-caption">
                 {demo
                   ? "Схема подсветки · не эталон жеста"
-                  : "Распознавание работает на вашем устройстве"}
+                  : "Обработка на вашем устройстве"}
               </span>
             )}
           </div>

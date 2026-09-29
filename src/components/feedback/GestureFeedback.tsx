@@ -39,6 +39,7 @@ export function GestureFeedback({
       <span className="eyebrow">Подсказка для вас</span>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
+          className="feedback-message"
           key={status}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

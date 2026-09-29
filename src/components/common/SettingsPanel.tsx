@@ -1,4 +1,5 @@
 import { settingsService, useSettings } from "../../services/settingsService";
+import { ChevronDown, SlidersHorizontal } from "lucide-react";
 
 /** Feedback preferences. Visual feedback is always on; the rest are optional. */
 export function SettingsPanel() {
@@ -15,7 +16,7 @@ export function SettingsPanel() {
   );
   return (
     <details className="settings-panel card">
-      <summary>Настройки обучения</summary>
+      <summary><SlidersHorizontal size={18} aria-hidden="true" /><span>Настройки обучения</span><ChevronDown size={17} className="settings-chevron" aria-hidden="true" /></summary>
       <div className="settings-grid">
         <fieldset>
           <legend>Какой рукой показываете жесты?</legend>

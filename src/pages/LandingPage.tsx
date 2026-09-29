@@ -1,4 +1,4 @@
-import { ArrowRight, ScanLine, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, ScanLine, ShieldCheck, MoveUpRight } from "lucide-react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Page } from "../components/layout/Page";
 import { Button } from "../components/common/Button";
@@ -18,7 +18,7 @@ export function LandingPage() {
     <Page>
       <section className="landing">
         <div className="landing-copy">
-          <span className="eyebrow">Учиться понимать друг друга</span>
+          <span className="eyebrow landing-kicker">Русский жестовый язык · РЖЯ</span>
           <h1>
             Новый язык.
             <br />
@@ -30,9 +30,9 @@ export function LandingPage() {
           </p>
           <Button
             onClick={() => navigate(ROUTES.login)}
-            icon={<ArrowRight size={20} aria-hidden="true" />}
           >
             Начать обучение
+            <ArrowRight size={20} aria-hidden="true" />
           </Button>
           <div className="landing-links">
             <Link to={ROUTES.login}>Войти</Link>
@@ -49,27 +49,29 @@ export function LandingPage() {
           aria-label="Пример интерфейса распознавания, не эталон жеста"
         >
           <div className="row-between">
-            <span className="eyebrow">От движения к пониманию</span>
-            <ScanLine size={22} className="text-primary" />
+            <span className="eyebrow">Учимся замечать детали</span>
+            <ScanLine size={22} className="text-primary" aria-hidden="true" />
           </div>
           <div className="preview-window">
-            <span className="preview-label">Покажите жест</span>
-            <span className="preview-letter">А</span>
+            <span className="preview-label">Буква А</span>
+            <img className="preview-reference" src="/assets/gestures/letter-1.svg" alt="Иллюстрация буквы А из урока" />
             <span className="preview-corner top-left" />
             <span className="preview-corner bottom-right" />
-            <p>Изучите → попробуйте → исправьте</p>
+            <p>Пример учебного экрана</p>
           </div>
           <div className="preview-feedback">
-            <Sparkles size={24} aria-hidden="true" />
+            <span className="preview-feedback-icon"><MoveUpRight size={24} aria-hidden="true" /></span>
             <div>
-              <strong>Важна каждая деталь</strong>
-              <p>Понятная подсказка и подсветка ошибки на руке.</p>
+              <span className="preview-feedback-label">Например, такая подсказка</span>
+              <strong>Поверните ладонь к камере</strong>
+              <p>Вы видите, что именно нужно исправить.</p>
             </div>
           </div>
-          <p className="preview-note">
-            Распознавание работает прямо в браузере: камера → точки руки →
-            сравнение с эталонами → подсказка.
-          </p>
+          <ol className="preview-steps" aria-label="Как проходит обучение">
+            <li><span>01</span> Изучите</li>
+            <li><span>02</span> Покажите</li>
+            <li><span>03</span> Исправьте</li>
+          </ol>
         </div>
       </section>
     </Page>

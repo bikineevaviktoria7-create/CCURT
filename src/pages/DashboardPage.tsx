@@ -69,12 +69,15 @@ export function DashboardPage() {
           </div>
         )}
         {completed.length > 0 && (
-          <div className="progress-insights">
-            <div className="card chart-card">
-              <ProgressChart sessions={progress.sessions} />
+          <details className="progress-details">
+            <summary>Статистика занятий</summary>
+            <div className="progress-insights">
+              <div className="card chart-card">
+                <ProgressChart sessions={progress.sessions} />
+              </div>
+              <Leaderboard refreshKey={progress.sessions.length} />
             </div>
-            <Leaderboard refreshKey={progress.sessions.length} />
-          </div>
+          </details>
         )}
         <SettingsPanel />
         {status !== "ready" ? (

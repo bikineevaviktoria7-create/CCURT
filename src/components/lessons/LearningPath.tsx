@@ -29,7 +29,7 @@ export function LearningPath({
         );
         return (
           <section
-            className="path-section"
+            className={`path-section path-section--${section.id}`}
             key={section.id}
             aria-labelledby={`section-${section.id}`}
           >
@@ -107,7 +107,7 @@ export function LearningPath({
                 return (
                   <li
                     key={lesson.id}
-                    className={`path-item ${repetition || moreLetters ? "repetition-start" : ""}`}
+                    className={`path-item path-item--${status} ${repetition || moreLetters ? "repetition-start" : ""}`}
                   >
                     {repetition && (
                       <span className="repetition-label">

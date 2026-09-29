@@ -18,7 +18,7 @@ export function GestureReference({ gesture }: { gesture: Gesture }) {
         <div className="reference-placeholder">
           <span className="reference-label" aria-hidden="true">{gesture.label}</span>
           <span className="reference-caption"><Image size={16} aria-hidden="true" /> Проверенный эталон пока отсутствует</span>
-          <span className="text-xs text-text-secondary">Изображение / GIF / видео будет добавлено после проверки</span>
+          <span className="reference-help">Изображение или видео появится после проверки</span>
         </div>
       )}
     </figure>
