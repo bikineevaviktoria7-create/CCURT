@@ -1,3 +1,4 @@
+import { uiText } from "../../lib/uiText";
 import { Check, LockKeyhole, Play, RotateCcw, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { lessonSections } from "../../data/lessons";
@@ -42,7 +43,7 @@ export function LearningPath({
                     ? "Изучение алфавита"
                     : section.title}
                 </h2>
-                <p>{section.description}</p>
+                <p>{uiText(section.description)}</p>
               </div>
             </div>
             <ol className="path-nodes">
@@ -139,7 +140,7 @@ export function LearningPath({
                         <button
                           className="lesson-node"
                           disabled
-                          aria-label={`Урок ${lesson.number}: ${lesson.title}. Сначала завершите предыдущие уроки.`}
+                          aria-label={`Урок ${lesson.number}: ${lesson.title}. Сначала завершите предыдущие уроки`}
                         >
                           {contents}
                         </button>

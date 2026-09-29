@@ -1,3 +1,4 @@
+import { uiText } from "../lib/uiText";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -23,7 +24,7 @@ function NameStep({ lesson }: { lesson: Lesson }) {
     event.preventDefault();
     const value = String(new FormData(event.currentTarget).get("name") ?? "").trim();
     if (!NAME_PATTERN.test(value)) {
-      setError("Напишите имя русскими буквами, от 2 до 12 букв.");
+      setError("Напишите имя русскими буквами, от 2 до 12 букв");
       return;
     }
     if (user) settingsService.setLearnerName(user.id, value);
@@ -35,8 +36,8 @@ function NameStep({ lesson }: { lesson: Lesson }) {
       <form className="name-step card form-stack" onSubmit={submit} noValidate>
         <h2>Как вас зовут?</h2>
         <p>
-          В конце урока вы покажете своё имя дактилем — буква за буквой.
-          Напишите его русскими буквами.
+          В конце урока вы покажете своё имя дактилем – буква за буквой.
+          Напишите его русскими буквами
         </p>
         <label>
           Имя
@@ -51,7 +52,7 @@ function NameStep({ lesson }: { lesson: Lesson }) {
         </label>
         {error && (
           <p className="form-error" role="alert">
-            {error}
+            {uiText(error)}
           </p>
         )}
         <Button type="submit">Сохранить имя</Button>
@@ -61,21 +62,19 @@ function NameStep({ lesson }: { lesson: Lesson }) {
   return (
     <div className="name-step card">
       <p>
-        Ваше имя дактилем: <strong>{spelled.letters.map((letter) => letter.label).join(" · ") || "—"}</strong>{" "}
+        Ваше имя дактилем: <strong>{spelled.letters.map((letter) => letter.label).join(" · ") || "–"}</strong>{" "}
         <button className="text-link" onClick={() => setEditing(true)}>
           Изменить
         </button>
       </p>
       {spelled.skipped.length > 0 && (
         <p className="notice">
-          Буквы {spelled.skipped.join(", ")} пока нельзя потренировать — они
-          будут пропущены.
+          В практике будут пропущены буквы: {spelled.skipped.join(", ")}
         </p>
       )}
       {spelled.letters.length < 2 && (
         <p className="notice">
-          Для вашего имени пока мало букв с эталонами — урок пройдёт только со
-          словами.
+          В этом уроке вы потренируете только слова
         </p>
       )}
     </div>
@@ -109,9 +108,7 @@ export function LessonOverviewPage() {
             Урок {lesson.number} · {lesson.title}
           </p>
           <h1>
-            На этом занятии
-            <br />
-            мы изучим:
+            На этом занятии мы изучим:
           </h1>
           <div className="overview-gestures">
             {(lesson.theoryGestures ?? lesson.gestures).map((gesture) => (

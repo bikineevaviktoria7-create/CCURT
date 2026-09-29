@@ -32,14 +32,14 @@ export function Leaderboard({ refreshKey }: { refreshKey: number }) {
       {rows === null ? (
         <p>Загружаем…</p>
       ) : rows.length === 0 ? (
-        <p>Пока пусто — завершите урок и станьте первым!</p>
+        <p>Пока пусто – завершите урок и станьте первым!</p>
       ) : (
         <ol>
           {rows.map((row) => (
             <li key={`${row.rank}-${row.name}`} className={row.is_me ? "me" : ""}>
               <span className="leader-rank">{row.rank}</span>
               <span className="leader-name">{row.is_me ? `${row.name} (вы)` : row.name}</span>
-              <span className="leader-lessons">{row.lessons_completed} ур.</span>
+              <span className="leader-lessons">{row.lessons_completed} ур</span>
               <strong>{row.total_score}</strong>
             </li>
           ))}

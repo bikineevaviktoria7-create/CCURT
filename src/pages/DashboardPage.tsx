@@ -20,7 +20,7 @@ export function DashboardPage() {
     <Page>
       <div className="learning-home">
         <div className="home-heading">
-          <span className="eyebrow">Ваш путь в РЖЯ</span>
+          <span className="eyebrow">Изучаем русский жестовый язык</span>
           <h1>
             {user?.isGuest
               ? "Добро пожаловать!"
@@ -28,11 +28,11 @@ export function DashboardPage() {
           </h1>
           <p>
             {completed.length
-              ? "Продолжим с того места, где остановились."
-              : "Начнём с алфавита. Первый урок — всего пять минут."}
+              ? "Продолжим с того места, где остановились"
+              : "Начнём с алфавита. Первый урок – всего пять минут"}
           </p>
           {user?.isGuest && (
-            <small>Прогресс сохранится на этом устройстве.</small>
+            <small>Прогресс сохранится на этом устройстве</small>
           )}
         </div>
         {completed.length > 0 ? (
@@ -65,19 +65,19 @@ export function DashboardPage() {
         ) : (
           <div className="first-step">
             <BookOpen size={20} />
-            <span>Ваш путь начинается здесь. Выберите первый урок.</span>
+            <span>Ваш путь начинается здесь. Выберите первый урок</span>
           </div>
         )}
         {completed.length > 0 && (
-          <details className="progress-details">
-            <summary>Статистика занятий</summary>
+          <section className="lesson-statistics" aria-labelledby="lesson-statistics-title">
+            <h2 id="lesson-statistics-title">Статистика занятий</h2>
             <div className="progress-insights">
               <div className="card chart-card">
                 <ProgressChart sessions={progress.sessions} />
               </div>
               <Leaderboard refreshKey={progress.sessions.length} />
             </div>
-          </details>
+          </section>
         )}
         <SettingsPanel />
         {status !== "ready" ? (

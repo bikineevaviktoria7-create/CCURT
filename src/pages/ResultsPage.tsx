@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowRight, Check, RotateCcw, Star } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useApp } from "../context/appState";
 import { useLessons } from "../hooks/useLessons";
-import { frequentErrors, isDemoResult, lessonStatus, progressService } from "../services/progressService";
+import { errorLabels, frequentErrors, isDemoResult, lessonStatus, progressService } from "../services/progressService";
 import { feedback } from "../lib/feedback";
 import { Page } from "../components/layout/Page";
 import { ContentState } from "../components/common/ContentState";
@@ -42,8 +42,12 @@ export function ResultsPage() {
   const result = progress.sessions.find((item) => item.sessionId === sessionId) ??
     (user && sessionId ? progressService.getResult(user.id, sessionId) : undefined);
   const found = Boolean(result);
+  const completionSoundPlayed = useRef(false);
   useEffect(() => {
-    if (found) feedback.lessonComplete();
+    if (found && !completionSoundPlayed.current) {
+      completionSoundPlayed.current = true;
+      feedback.lessonComplete();
+    }
   }, [found]);
   if (status !== "ready")
     return (
@@ -56,7 +60,7 @@ export function ResultsPage() {
       <Page>
         <div className="content-state">
           <h1>Результат не найден</h1>
-          <p>Он может быть сохранён в другом браузере или аккаунте.</p>
+          <p>Он может быть сохранён в другом браузере или аккаунте</p>
           <Link className="button button--primary" to={ROUTES.dashboard}>
             Вернуться на главную
           </Link>
@@ -68,12 +72,12 @@ export function ResultsPage() {
   const lesson = lessons[currentIndex];
   const demo = isDemoResult(result);
   const nextAvailable = next && lessonStatus(next, lessons, progress) !== "locked";
-  const errors = frequentErrors(result.attempts);
+  const errors = frequentErrors(result.attempts).filter(({ label }) => label !== errorLabels.LOW_LIGHT);
   const seconds = Math.floor(result.durationMs / 1000);
   return (
     <Page>
       <section className="results-screen">
-        <span className="result-check">
+        <span className="result-check result-celebrate">
           <Check size={28} />
         </span>
         <span className="eyebrow">
@@ -81,24 +85,25 @@ export function ResultsPage() {
           Урок {lesson?.number}
         </span>
         <h1>Урок завершён</h1>
-        {demo && <p className="notice">Результат демонстрации: очки, статистика и прогресс обучения не изменились.</p>}
+        {demo && <p className="notice">Этот результат не влияет на очки и прогресс обучения</p>}
         <p>
           {lesson?.personalized === "name" && lesson.spelledName && lesson.spelledName.letters.length >= 2
             ? "Вы показали своё имя на жестовом языке!"
-            : "Ещё один шаг к пониманию друг друга."}
+            : "Ещё один шаг к пониманию друг друга"}
         </p>
         <div
           className="result-stars"
           role="img"
           aria-label={`${result.stars} из 3 звёзд`}
         >
+          {!reduced && <span className="result-burst" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} style={{ "--angle": `${index * 30}deg`, "--reach": `${70 + index % 3 * 15}px` } as CSSProperties} />)}</span>}
           {[1, 2, 3].map((star) => (
             <motion.span
               aria-hidden="true"
               key={star}
               initial={reduced ? false : { opacity: 0, scale: 0.75 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: reduced ? 0 : star * 0.15, duration: 0.25 }}
+              transition={{ delay: reduced ? 0 : 0.35 + star * 0.15, duration: 0.3 }}
             >
               <Star
                 size={44}
@@ -108,7 +113,7 @@ export function ResultsPage() {
             </motion.span>
           ))}
         </div>
-        <div className="result-stats card">
+        <motion.div className="result-stats card" initial={reduced ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduced ? 0 : 1.05, duration: 0.35 }}>
           <div>
             <strong>{result.accuracy}%</strong>
             <span>Точность</span>
@@ -124,7 +129,7 @@ export function ResultsPage() {
             </strong>
             <span>Правильные жесты</span>
           </div>
-        </div>
+        </motion.div>
         <p className="result-time">
           Время занятия: {String(Math.floor(seconds / 60)).padStart(2, "0")}:
           {String(seconds % 60).padStart(2, "0")}
@@ -145,8 +150,8 @@ export function ResultsPage() {
           ) : (
             <p>
               {result.attempts.some((item) => item.skipped)
-                ? "Жесты пропущены. Повторите урок, чтобы потренироваться."
-                : "В этом занятии ошибки не отмечены."}
+                ? "Жесты пропущены. Повторите урок, чтобы потренироваться"
+                : "Нет ошибок для разбора"}
             </p>
           )}
         </div>
@@ -162,7 +167,7 @@ export function ResultsPage() {
           ) : !next && !demo ? (
             <p className="notice">
               Вы прошли все {lessons.length} уроков! Можно повторить любой на
-              дорожке.
+              дорожке
             </p>
           ) : null}
           <Link

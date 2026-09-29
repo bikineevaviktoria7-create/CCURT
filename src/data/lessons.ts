@@ -2,11 +2,11 @@ import type { Gesture, Lesson, LessonSection } from "../types/lesson";
 import { alphabet, findLetterByLabel, PLACEHOLDER_DESCRIPTION } from "./alphabet.ts";
 
 // Lesson structure lives in code (stable, works offline). Gesture descriptions and
-// photos are loaded from the database / admin panel and merged in useLessons.
+// photos are loaded from the database / saved samples and merged in useLessons.
 
 export const lessonSections: readonly LessonSection[] = [
   { id: "alphabet", number: 1, title: "Алфавит", description: "От первых букв к уверенной практике" },
-  { id: "words", number: 2, title: "Основные слова", description: "Первые шаги к общению на РЖЯ" },
+  { id: "words", number: 2, title: "Основные слова", description: "Первые шаги к общению на русском жестовом языке" },
 ];
 
 const alphabetTitles = [
@@ -15,7 +15,7 @@ const alphabetTitles = [
 ];
 
 const alphabetGroups = [
-  ["А", "Б", "В"], ["Г", "Е", "И"], ["Л", "М", "Н"], ["О", "П", "С"], ["Т", "У", "Ш"],
+  ["А", "Б", "В"], ["Г", "И", "Е"], ["Л", "М", "Н"], ["О", "П", "С"], ["Т", "У", "Ш"],
   ["А", "Б", "В", "Г", "Е"], ["И", "Л", "М", "Н", "О"], ["П", "С", "Т", "У", "Ш"],
   ["А", "И", "М", "П", "Ш"], ["Б", "Г", "Л", "О", "Т"],
 ];

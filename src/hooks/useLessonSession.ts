@@ -6,6 +6,7 @@ import type { Lesson } from "../types/lesson";
 export type SessionAction =
   | { type: "NEXT_THEORY"; total: number }
   | { type: "START_PRACTICE" }
+  | { type: "COUNTDOWN_TICK" }
   | { type: "ACCEPT"; attempt: GestureAttempt }
   | { type: "ADVANCE"; total: number };
 
@@ -14,6 +15,7 @@ export function initialSession(now: number): LessonSessionState {
     phase: "learn",
     currentGestureIndex: 0,
     attempts: [],
+    countdown: 0,
     startedAt: now,
   };
 }
@@ -49,13 +51,19 @@ export function lessonSessionReducer(
         ? { ...state, phase: "completed" }
         : {
             ...state,
-            phase: "practice",
+            phase: state.attempts.at(-1)?.success ? "prepare" : "practice",
+            countdown: state.attempts.at(-1)?.success ? 3 : 0,
             currentGestureIndex: state.currentGestureIndex + 1,
           };
+    case "COUNTDOWN_TICK":
+      if (state.phase !== "prepare") return state;
+      return state.countdown > 1
+        ? { ...state, countdown: state.countdown - 1 }
+        : { ...state, phase: "practice", countdown: 0 };
   }
 }
 
-export function useLessonSession(lesson: Lesson) {
+export function useLessonSession(lesson: Lesson, paused = false) {
   const [state, dispatch] = useReducer(
     lessonSessionReducer,
     Date.now(),
@@ -74,6 +82,12 @@ export function useLessonSession(lesson: Lesson) {
     );
     return () => window.clearTimeout(timer);
   }, [state.phase, lesson.gestures.length]);
+  useEffect(() => {
+    if (state.phase !== "prepare" || paused) return;
+    // 950 ms success + three 650 ms beats = 2.9 s to change hand position.
+    const timer = window.setTimeout(() => dispatch({ type: "COUNTDOWN_TICK" }), 650);
+    return () => window.clearTimeout(timer);
+  }, [state.phase, state.countdown, paused]);
   const accept = useCallback(
     (attempt: GestureAttempt) => dispatch({ type: "ACCEPT", attempt }),
     [],

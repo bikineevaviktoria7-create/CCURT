@@ -2,8 +2,7 @@ import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LogOut, Settings2 } from "lucide-react";
-import { canUseAdmin } from "../../services/accessService";
+import { LogOut } from "lucide-react";
 import { Logo } from "../common/Logo";
 import { useApp } from "../../context/appState";
 import { ROUTES } from "../../app/constants";
@@ -36,12 +35,6 @@ export function Page({
         <nav aria-label="Основная навигация" className="header-actions">
           {user ? (
             <>
-              {canUseAdmin(user) && (
-                <Link className="text-link admin-link" to={ROUTES.admin}>
-                  <Settings2 size={16} aria-hidden="true" />
-                  <span className="admin-link-text">Эталоны</span>
-                </Link>
-              )}
               <span className="user-name">
                 {user.isGuest ? "Гостевой режим" : user.name}
               </span>
@@ -50,7 +43,8 @@ export function Page({
                 aria-label="Выйти"
                 onClick={() => {
                   logout();
-                  navigate(ROUTES.home);
+                  // Commit navigation together with the cleared user, before the route guard redirects.
+                  navigate(ROUTES.home, { replace: true, flushSync: true });
                 }}
               >
                 <LogOut size={19} />
@@ -74,7 +68,7 @@ export function Page({
         {!storage.isPersistent() && (
           <p className="notice" role="status">
             Браузер не разрешает сохранять данные. Прогресс доступен до закрытия
-            страницы.
+            страницы
           </p>
         )}
         {children}

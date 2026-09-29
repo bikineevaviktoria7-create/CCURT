@@ -1,5 +1,4 @@
 export type SectionId = 'alphabet' | 'words';
-export type LessonStatus = 'completed' | 'current' | 'available' | 'locked';
 export type Stars = 0 | 1 | 2 | 3;
 
 export interface ReferenceMedia {

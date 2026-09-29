@@ -38,7 +38,7 @@ export function loadGestureLibrary() {
   return cache;
 }
 
-/** Strictness: admin override on this device → env → exported bundle → 1. */
+/** Strictness: saved override on this device → env → exported bundle → 1. */
 export function recognitionTolerance(library?: GestureLibrary) {
   const env = Number(import.meta.env.VITE_RECOGNITION_TOLERANCE);
   return (
@@ -48,9 +48,6 @@ export function recognitionTolerance(library?: GestureLibrary) {
     1
   );
 }
-
-export const visionMode: "real" | "mock" =
-  import.meta.env.VITE_VISION_MODE === "mock" ? "mock" : "real";
 
 export function useGestureLibrary(enabled = true) {
   const [state, setState] = useState<{

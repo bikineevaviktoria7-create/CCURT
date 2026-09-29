@@ -1,14 +1,16 @@
 export const APP_NAME = "SignStep";
 export const MOCK_AUTH_ENABLED = true;
-export const MOCK_CREDENTIALS = { login: "Руслана", password: "12345678", userId: "mock-ruslana" } as const;
+export const DEMO_PASSWORD = "1237890q";
+export const DEMO_USERS = [
+  { name: "Руслана", id: "mock-ruslana" },
+  { name: "Камилла", id: "mock-kamilla" },
+  { name: "Мария", id: "mock-maria" },
+] as const;
 
 export const ROUTES = {
   home: "/",
   login: "/login",
-  register: "/register",
-  verifyEmail: "/verify-email",
   dashboard: "/dashboard",
-  admin: "/admin",
   preview: "/preview",
   previewResult: "/preview/result",
   lesson: (lessonId: string) => `/lessons/${encodeURIComponent(lessonId)}`,

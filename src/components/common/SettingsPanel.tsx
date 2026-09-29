@@ -4,7 +4,7 @@ import { ChevronDown, SlidersHorizontal } from "lucide-react";
 /** Feedback preferences. Visual feedback is always on; the rest are optional. */
 export function SettingsPanel() {
   const settings = useSettings();
-  const toggle = (key: "soundEnabled" | "speechEnabled" | "vibrationEnabled", label: string) => (
+  const toggle = (key: "soundEnabled" | "speechEnabled", label: string) => (
     <label className="setting-toggle">
       <input
         type="checkbox"
@@ -36,7 +36,6 @@ export function SettingsPanel() {
           <legend>Дополнительная обратная связь</legend>
           {toggle("soundEnabled", "Звуки успеха и подсказок")}
           {toggle("speechEnabled", "Озвучивать распознанное слово")}
-          {toggle("vibrationEnabled", "Вибрация на телефоне")}
         </fieldset>
       </div>
     </details>

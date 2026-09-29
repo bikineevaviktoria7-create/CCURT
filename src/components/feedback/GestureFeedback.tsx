@@ -1,17 +1,20 @@
+import { hints } from "../../vision/hints";
+import { uiText } from "../../lib/uiText";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Hand, ScanLine, TriangleAlert, X } from "lucide-react";
 import type { RecognitionResult } from "../../types/vision";
 
 export function GestureFeedback({
   result,
-  demo = false,
   handVisibility = false,
 }: {
   result: RecognitionResult;
-  demo?: boolean;
   handVisibility?: boolean;
 }) {
   const { status, holdProgress } = result;
+  const message = result.message === hints.noSamples()
+    ? "Можно пропустить этот жест и продолжить урок"
+    : result.message;
   const title =
     status === "success"
       ? "Отлично!"
@@ -52,16 +55,14 @@ export function GestureFeedback({
           <div role="status" aria-live="polite" aria-atomic="true">
             <h2>{title}</h2>
             <p>
-              {result.message ??
+              {uiText(message ??
                 (status === "success"
-                  ? demo
-                    ? "Жест принят в демонстрации. Переходим дальше."
-                    : "Жест распознан. Переходим дальше."
+                  ? "Жест распознан. Переходим дальше"
                   : status === "searching"
                     ? holdProgress > 0
                       ? "Удерживайте жест…"
                       : "Проверяем жест…"
-                    : "Расположите руку в центре кадра.")}
+                    : "Расположите руку в центре кадра"))}
             </p>
           </div>
         </motion.div>
@@ -91,10 +92,28 @@ export function GestureFeedback({
       )}
       {result.confidence > 0 && status !== "environment-error" && (
         <p className="confidence">
-          {demo ? "Сходство в демо" : "Сходство с эталоном"}{" "}
+          Сходство с образцом{" "}
           <strong>{Math.round(result.confidence * 100)}%</strong>
         </p>
       )}
+    </section>
+  );
+}
+
+export function GestureCountdown({ count, title }: { count: number; title: string }) {
+  return (
+    <section className="feedback-card gesture-countdown" aria-label="Подготовка к следующему жесту">
+      <span className="eyebrow">Следующий жест</span>
+      <h2>{title}</h2>
+      <div className="countdown-dial" aria-hidden="true">
+        <svg viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="34" className="ring-track" />
+          <circle cx="40" cy="40" r="34" className="ring-value" pathLength="3" strokeDasharray={`${4 - count} 3`} />
+        </svg>
+        <strong key={count}>{count}</strong>
+      </div>
+      <p role="status" aria-live="polite">Подготовьте руку<span className="sr-only">. Отсчёт: {count}</span></p>
+      <small>Ошибки пока не учитываются</small>
     </section>
   );
 }

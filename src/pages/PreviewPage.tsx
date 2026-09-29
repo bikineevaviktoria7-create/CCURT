@@ -1,3 +1,4 @@
+import { feedback } from "../lib/feedback";
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
@@ -25,10 +26,10 @@ export function PreviewPage() {
   return <Page>
     <div className="action-row"><Link to={ROUTES.home} className="text-link">← На начальную</Link><span className="eyebrow">Предпросмотр · 1 / 1</span></div>
     {phase === "learn" ? <section className="learn-screen">
-      <div className="learn-intro"><h1>Попробуйте камеру и подсказки</h1><p>Одно тестовое упражнение. Проверяем видимость руки без оценки жеста РЖЯ.</p></div>
+      <div className="learn-intro"><h1>Попробуйте камеру и подсказки</h1><p>Покажите руку и удерживайте её в кадре</p></div>
       <div className="learn-card card">
         <GestureReference gesture={previewExercise} />
-        <div className="learn-description"><h2>{previewExercise.title}</h2><p>{previewExercise.description}</p><Button onClick={() => setPhase("practice")}>Начать практику</Button></div>
+        <div className="learn-description"><h2>{previewExercise.title}</h2><p>Поднимите одну руку так, чтобы запястье и все пальцы были видны. Удерживайте её в центре кадра до заполнения кольца</p><Button onClick={() => setPhase("practice")}>Начать практику</Button></div>
       </div>
     </section> : <PracticeGesture gesture={previewExercise} exercise="hand-visibility" paused={false}
       transitioning={phase === "success"} onAccept={(attempt) => {
@@ -42,16 +43,22 @@ export function PreviewPage() {
 
 export function PreviewResultPage() {
   const result = previewService.getResult();
+  const completionSoundPlayed = useRef(false);
+  useEffect(() => {
+    if (result && !completionSoundPlayed.current) {
+      completionSoundPlayed.current = true;
+      feedback.lessonComplete();
+    }
+  }, [result]);
   if (!result) return <Navigate to={ROUTES.preview} replace />;
-  return <Page compact>
-    <section className="practice-ready">
+  return <Page>
+    <section className="practice-ready preview-result">
       <span className="ready-icon"><Check size={34} /></span>
       <span className="eyebrow">Предпросмотр · 1 / 1</span>
-      <h1>Тест завершён</h1>
-      <p>Камера обнаружила вашу руку и проверила удержание в кадре. Это тест работы камеры, а не оценка знания РЖЯ.</p>
-      <p>Предпросмотр пройден. Войдите, чтобы открыть все уроки.</p>
-      <Link className="button button--primary" to={ROUTES.login}>Войти</Link>
-      <Link className="text-link" to={ROUTES.register}>Регистрация / временный вход</Link>
+      <h1>Упражнение завершено</h1>
+      <p>Вы удержали руку в кадре! Теперь можно перейти к изучению жестов</p>
+      <p>Предпросмотр пройден. Войдите, чтобы открыть все уроки</p>
+      <Link className="button button--primary" to={ROUTES.login}>Войти и открыть все уроки</Link>
       <Link className="text-link" to={ROUTES.home}>На начальную</Link>
     </section>
   </Page>;

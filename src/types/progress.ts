@@ -2,7 +2,7 @@ import type { GestureErrorCode, VisionMode } from "./vision";
 import type { Stars } from "./lesson";
 
 export type LessonPhase =
-  "learn" | "ready" | "practice" | "transition" | "completed";
+  "learn" | "ready" | "practice" | "prepare" | "transition" | "completed";
 
 export interface GestureAttempt {
   /** Absent only in legacy results, whose source was not recorded. */
@@ -19,6 +19,7 @@ export interface LessonSessionState {
   phase: LessonPhase;
   currentGestureIndex: number;
   attempts: GestureAttempt[];
+  countdown: number;
   startedAt: number;
 }
 

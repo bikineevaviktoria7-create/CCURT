@@ -1,10 +1,10 @@
-import { ArrowRight, ScanLine, ShieldCheck, MoveUpRight } from "lucide-react";
+import { ArrowRight, ScanLine, MoveUpRight } from "lucide-react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Page } from "../components/layout/Page";
 import { Button } from "../components/common/Button";
 import { useApp } from "../context/appState";
 import { authService } from "../services/authService";
-import { APP_NAME, ROUTES } from "../app/constants";
+import { ROUTES } from "../app/constants";
 
 export function LandingPage() {
   const { user, setUser } = useApp();
@@ -18,15 +18,14 @@ export function LandingPage() {
     <Page>
       <section className="landing">
         <div className="landing-copy">
-          <span className="eyebrow landing-kicker">Русский жестовый язык · РЖЯ</span>
+          <span className="eyebrow landing-kicker">Русский жестовый язык</span>
           <h1>
-            Новый язык.
+            Жесты, которые
             <br />
-            <span className="text-primary">Ближе друг к другу.</span>
+            <span className="text-primary">становятся понятными</span>
           </h1>
           <p className="lead">
-            Изучайте русский жестовый язык шаг за шагом. Покажите жест в камеру
-            — {APP_NAME} подскажет, что именно нужно исправить.
+            Изучайте жестовый язык и сразу практикуйтесь с помощью камеры
           </p>
           <Button
             onClick={() => navigate(ROUTES.login)}
@@ -36,13 +35,8 @@ export function LandingPage() {
           </Button>
           <div className="landing-links">
             <Link to={ROUTES.login}>Войти</Link>
-            <Link to={ROUTES.register}>Зарегистрироваться</Link>
             <button onClick={start}>Предпросмотр</button>
           </div>
-          <p className="privacy">
-            <ShieldCheck size={18} aria-hidden="true" />
-            Видео обрабатывается на вашем устройстве.
-          </p>
         </div>
         <div
           className="landing-preview"
@@ -64,7 +58,7 @@ export function LandingPage() {
             <div>
               <span className="preview-feedback-label">Например, такая подсказка</span>
               <strong>Поверните ладонь к камере</strong>
-              <p>Вы видите, что именно нужно исправить.</p>
+              <p>Вы видите, что именно нужно исправить</p>
             </div>
           </div>
           <ol className="preview-steps" aria-label="Как проходит обучение">

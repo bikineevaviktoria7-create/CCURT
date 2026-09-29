@@ -72,7 +72,8 @@ export function useRecognition(
     }
     const skeleton = createSkeletonOverlay(video.current, canvas.current);
     function showResult(next: RecognitionResult) {
-      if (!active) return;
+      // Reject late callbacks as well as paused frames: preparation cannot affect attempts.
+      if (!active || pausedRef.current) return;
       lastResult = next;
       setResult(next);
       const key = next.errorCodes?.join() ?? "";

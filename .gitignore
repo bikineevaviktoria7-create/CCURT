@@ -7,3 +7,4 @@ dist/
 !.env.example
 *.tsbuildinfo
 .qa/
+.vite/

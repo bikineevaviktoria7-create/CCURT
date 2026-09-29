@@ -10,11 +10,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
-    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test": "node --experimental-strip-types --test dop/tests/*.test.ts",
     "lint": "eslint . --max-warnings 0",
     "preview": "vite preview",
-    "postinstall": "node scripts/copy-mediapipe.mjs",
-    "models": "node scripts/download-models.mjs"
+    "postinstall": "node dop/scripts/copy-mediapipe.mjs",
+    "models": "node dop/scripts/download-models.mjs"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "^5.2.8",

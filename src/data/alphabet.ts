@@ -1,4 +1,4 @@
-import type { Gesture } from "../types/lesson";
+import type { Gesture, ReferenceMedia } from "../types/lesson";
 
 // The full Russian alphabet for fingerspelling (дактиль). Ids 1–15 keep the order
 // of the original lessons; the rest follow the alphabet. Letters marked "dynamic"
@@ -47,7 +47,7 @@ const DESCRIPTIONS: Readonly<Record<string, string>> = {
 };
 
 export const PLACEHOLDER_DESCRIPTION =
-  "Проверенные изображение и описание этого жеста ещё не добавлены. Они появятся после проверки специалистом РЖЯ.";
+  "Проверенные изображение и описание этого жеста ещё не добавлены. Они появятся после проверки специалистом по русскому жестовому языку.";
 
 export const alphabet: readonly Gesture[] = [...lessonLetters, ...otherLetters].map(
   (label, index) => ({
@@ -67,3 +67,17 @@ const byLabel = new Map(alphabet.map((letter) => [letter.label, letter]));
 export function findLetterByLabel(label: string) {
   return byLabel.get(label.toUpperCase());
 }
+
+// Fingerspelling illustrations (dactyl chart, one SVG per letter, the letter is
+// signed as seen by the person facing the signer). File name = gesture id.
+// Words have no illustrations yet; GestureReference shows a placeholder for them.
+export const gestureReferences: Readonly<Partial<Record<string, ReferenceMedia>>> = Object.fromEntries(
+  alphabet.map((letter) => [
+    letter.id,
+    {
+      kind: "image",
+      src: `/assets/gestures/${letter.id}.svg`,
+      alt: `Как показывать букву ${letter.label} дактилем`,
+    } satisfies ReferenceMedia,
+  ]),
+);

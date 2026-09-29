@@ -1,3 +1,4 @@
+import { uiText } from "../lib/uiText";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
@@ -6,9 +7,9 @@ import { Page } from "../components/layout/Page";
 import { Button } from "../components/common/Button";
 import { useApp } from "../context/appState";
 import { authService } from "../services/authService";
-import { MOCK_CREDENTIALS, ROUTES } from "../app/constants";
+import { DEMO_PASSWORD, DEMO_USERS, ROUTES } from "../app/constants";
 
-export function AuthPage({ mode }: { mode: "login" | "register" }) {
+export function AuthPage() {
   const { user, setUser } = useApp();
   const navigate = useNavigate();
   const [error, setError] = useState("");
@@ -24,7 +25,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
       const next = await authService.login({ email: String(data.get("login") ?? ""), password: String(data.get("password") ?? "") });
       if (next) { setUser(next); navigate(ROUTES.dashboard); }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Не удалось войти. Попробуйте снова.");
+      setError(cause instanceof Error ? cause.message : "Не удалось войти. Попробуйте снова");
     } finally { setLoading(false); }
   }
   return (
@@ -34,7 +35,7 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
         <span className="auth-icon"><LogIn size={25} aria-hidden="true" /></span>
         <span className="eyebrow">Ваш следующий шаг</span>
         <h1>Войти в обучение</h1>
-        <p>{mode === "register" ? "Регистрация пока недоступна. Войдите в тестовый аккаунт." : "Для знакомства с платформой доступен тестовый вход."}</p>
+        <p>Продолжайте изучать жесты в своём темпе</p>
         <form onSubmit={submit} className="form-stack" aria-label="Вход">
           <label>Имя / логин<input name="login" autoComplete="username" placeholder="Введите логин" required maxLength={80} /></label>
           <div className="password-field">
@@ -46,10 +47,10 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
               </button>
             </div>
           </div>
-          {error && <p className="form-error" role="alert">{error}</p>}
+          {error && <p className="form-error" role="alert">{uiText(error)}</p>}
           <Button loading={loading} type="submit" fullWidth>Войти</Button>
         </form>
-        <p className="demo-note">Тестовый логин: <strong>{MOCK_CREDENTIALS.login}</strong><br />Пароль: <strong>{MOCK_CREDENTIALS.password}</strong></p>
+        <div className="demo-note"><p>{DEMO_USERS.map(user => user.name).join(" · ")}</p><p>Пароль для всех: <code>{DEMO_PASSWORD}</code></p></div>
         <button className="text-link guest-link" onClick={() => { setUser(authService.guest()); navigate(ROUTES.preview); }}>Предпросмотр</button>
       </section>
     </Page>

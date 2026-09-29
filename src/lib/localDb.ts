@@ -1,5 +1,5 @@
 // Tiny IndexedDB key-value store for data that is too big for localStorage
-// (recorded samples and gesture photos in local admin mode).
+// (saved reference samples and gesture photos).
 const DB_NAME = "signstep";
 const STORE = "kv";
 const memory = new Map<string, unknown>();

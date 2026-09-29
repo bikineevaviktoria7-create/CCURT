@@ -1,3 +1,5 @@
+import { PLACEHOLDER_DESCRIPTION } from "../data/alphabet";
+import { uiText } from "../lib/uiText";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Camera, Check } from "lucide-react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
@@ -32,9 +34,9 @@ function CompletedLesson({ getResult }: { getResult(): LessonResult }) {
 }
 
 function LessonPlayer({ lesson }: { lesson: Lesson }) {
-  const session = useLessonSession(lesson);
-  const { state } = session;
   const [exit, setExit] = useState(false);
+  const session = useLessonSession(lesson, exit);
+  const { state } = session;
   const navigate = useNavigate();
   const reduced = useReducedMotion();
   const main = useRef<HTMLElement>(null);
@@ -114,7 +116,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
                 <h1>{gesture.title}</h1>
                 <p>
                   Посмотрите эталон и описание. Практика начнётся, когда вы
-                  изучите все жесты урока.
+                  изучите все жесты урока
                 </p>
               </div>
               <div className="learn-card card">
@@ -122,13 +124,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
                 <div className="learn-description">
                   <span className="eyebrow">Как выполнить</span>
                   <h2>{gesture.title}</h2>
-                  <p>{gesture.description}</p>
-                  {!gesture.referenceMedia && (
-                    <p className="notice">
-                      Фото этого жеста ещё не добавлено. Сверьтесь с
-                      видеословарём РЖЯ.
-                    </p>
-                  )}
+                  {gesture.description !== PLACEHOLDER_DESCRIPTION && <p>{uiText(gesture.description)}</p>}
                   <Button onClick={session.nextTheory}>
                     Далее
                     <ArrowRight size={19} />
@@ -162,9 +158,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
               <ArrowRight size={19} />
             </Button>
             <p className="privacy">
-              На следующем экране браузер попросит доступ к камере.
-              <br />
-              Для распознавания нужны камера и проверенные эталоны.
+              На следующем экране браузер попросит доступ к камере
             </p>
           </section>
         ) : (
@@ -172,7 +166,8 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
             gesture={gesture}
             targetKey={state.currentGestureIndex}
             onAccept={session.accept}
-            transitioning={state.phase === "transition"}
+            transitioning={state.phase === "transition" || state.phase === "prepare"}
+            countdown={state.phase === "prepare" ? state.countdown : 0}
             paused={exit}
           />
         )}
@@ -181,7 +176,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
         <Modal title="Выйти из урока?" onClose={() => setExit(false)}>
           <p>
             Завершённые уроки сохранятся. Это занятие в следующий раз начнётся с
-            изучения жестов.
+            изучения жестов
           </p>
           <div className="action-row">
             <Button variant="secondary" onClick={() => setExit(false)}>

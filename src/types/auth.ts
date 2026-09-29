@@ -12,14 +12,9 @@ export interface LoginCredentials {
   password: string;
 }
 
-export interface RegisterCredentials extends LoginCredentials {
-  name: string;
-}
-
 export interface UserSettings {
   dominantHand: 'right' | 'left';
   soundEnabled: boolean;
   speechEnabled: boolean;
-  vibrationEnabled: boolean;
   calibrationCompleted: boolean;
 }

@@ -6,7 +6,6 @@ const defaults: UserSettings = {
   dominantHand: "right",
   soundEnabled: true,
   speechEnabled: true,
-  vibrationEnabled: true,
   calibrationCompleted: false,
 };
 
@@ -15,7 +14,10 @@ const listeners = new Set<() => void>();
 
 function read(): UserSettings {
   const value = storage.read("settings");
-  return isRecord(value) ? { ...defaults, ...(value as Partial<UserSettings>) } : defaults;
+  if (!isRecord(value)) return defaults;
+  const saved = { ...value };
+  delete saved.vibrationEnabled;
+  return { ...defaults, ...(saved as Partial<UserSettings>) };
 }
 
 export const settingsService = {
@@ -41,15 +43,10 @@ export const settingsService = {
     current = { ...current }; // new snapshot so subscribed screens re-render
     listeners.forEach((listener) => listener());
   },
-  /** Recognition strictness chosen in the admin panel on this device (for tuning). */
+  /** Previously saved recognition strictness on this device. */
   toleranceOverride() {
     const value = storage.read("recognition-tolerance");
     return typeof value === "number" ? value : null;
-  },
-  setToleranceOverride(value: number | null) {
-    if (value === null) storage.remove("recognition-tolerance");
-    else storage.write("recognition-tolerance", value);
-    listeners.forEach((listener) => listener());
   },
 };
 

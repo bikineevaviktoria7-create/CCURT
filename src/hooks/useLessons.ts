@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { gestureReferences } from "../data/gestureReferences";
 import { requirePlatform } from "../services/accessService";
 import { lessons as lessonData } from "../data/lessons";
-import { PLACEHOLDER_DESCRIPTION } from "../data/alphabet";
+import { gestureReferences, findLetterByLabel, PLACEHOLDER_DESCRIPTION } from "../data/alphabet";
 import { gestureRepository } from "../services/gestureRepository";
 import { loadGestureLibrary } from "../services/gestureLibrary";
 import { settingsService, useSettings } from "../services/settingsService";
 import { useApp } from "../context/appState";
-import { findLetterByLabel } from "../data/alphabet";
 import {
   buildNameGestures,
   firstWord,
@@ -37,7 +35,7 @@ async function loadContent(): Promise<Record<string, GestureContent>> {
 
 function withContent(gesture: Gesture, content: Record<string, GestureContent>): Gesture {
   const item = content[gesture.id];
-  // The dactyl chart drawings are the reference; a photo from the admin panel is
+  // The dactyl chart drawings are the reference; a saved photo is
   // only a fallback for gestures that have no drawing (words).
   const drawing = gestureReferences[gesture.id];
   gesture = { ...gesture, referenceMedia: drawing ?? gesture.referenceMedia };

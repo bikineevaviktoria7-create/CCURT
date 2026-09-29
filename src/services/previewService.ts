@@ -7,8 +7,8 @@ import type { GestureAttempt } from "../types/progress";
 export const previewExercise: Gesture = {
   id: "preview-hand", slug: "hand-in-frame", label: "Рука в кадре", title: "Удержите руку в кадре",
   category: "word", kind: "static", difficulty: 1,
-  description: "Поднимите одну руку так, чтобы запястье и все пальцы были видны. Удерживайте её в центре кадра до заполнения кольца. Это проверка обнаружения руки, а не жест РЖЯ.",
-  referenceMedia: { kind: "image", src: "/assets/branding/camera-zone.svg", alt: "Схема области камеры: рука должна полностью помещаться внутри рамки. Это не эталон РЖЯ." },
+  description: "Поднимите одну руку так, чтобы запястье и все пальцы были видны. Удерживайте её в центре кадра до заполнения кольца. Это проверка обнаружения руки, а не жест русского жестового языка.",
+  referenceMedia: { kind: "image", src: "/assets/branding/camera-zone.svg", alt: "Схема области камеры: рука должна полностью помещаться внутри рамки. Это не эталон русского жестового языка." },
 };
 // The preview (use without an account) keeps nothing between page loads: the
 // result lives only in memory, so a reload starts the preview from scratch.

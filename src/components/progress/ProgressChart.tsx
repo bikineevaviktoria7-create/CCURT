@@ -1,12 +1,12 @@
 import type { LessonResult } from "../../types/progress";
 
 /** Accuracy of the last sessions as a small SVG line chart (no chart library). */
-export function ProgressChart({ sessions }: { sessions: readonly LessonResult[] }) {
+function AccuracyTrend({ sessions }: { sessions: readonly LessonResult[] }) {
   const recent = sessions.slice(-10);
   if (recent.length < 2)
     return (
       <p className="chart-empty">
-        Пройдите ещё одно занятие — здесь появится график вашей точности.
+        Пройдите ещё одно занятие – здесь появится график вашей точности
       </p>
     );
   const width = 320;
@@ -46,5 +46,43 @@ export function ProgressChart({ sessions }: { sessions: readonly LessonResult[] 
       </svg>
       <figcaption>Точность последних занятий · в среднем {average}%</figcaption>
     </figure>
+  );
+}
+
+
+export function ProgressChart({ sessions }: { sessions: readonly LessonResult[] }) {
+  const recent = sessions.slice(-10);
+  const counts = { correct: 0, skipped: 0, other: 0 };
+  for (const session of recent) {
+    for (const attempt of session.attempts) {
+      if (attempt.success) counts.correct++;
+      else if (attempt.skipped) counts.skipped++;
+      else counts.other++;
+    }
+  }
+  const total = counts.correct + counts.skipped + counts.other;
+  const groups = [
+    { label: "Правильно", count: counts.correct, className: "outcome-correct" },
+    { label: "Пропущено", count: counts.skipped, className: "outcome-skipped" },
+    { label: "Не получилось", count: counts.other, className: "outcome-other" },
+  ];
+  return (
+    <div className="statistics-charts">
+      <section className="accuracy-panel">
+        <h3>Точность занятий</h3>
+        <AccuracyTrend sessions={sessions} />
+      </section>
+      <section className="outcomes-panel">
+        <h3>Практика в цифрах</h3>
+        <p className="outcome-total">Всего попыток: <strong>{total}</strong></p>
+        <p className="chart-empty">Учтено последних занятий: {recent.length}</p>
+        <div className="outcome-bar" aria-hidden="true">
+          {groups.map(group => <span key={group.className} className={group.className} style={{ width: `${total ? group.count / total * 100 : 0}%` }} />)}
+        </div>
+        <ul className="outcome-legend">
+          {groups.map(group => <li key={group.className}><span className={`outcome-dot ${group.className}`} aria-hidden="true" /><span>{group.label}</span><strong>{group.count}</strong></li>)}
+        </ul>
+      </section>
+    </div>
   );
 }

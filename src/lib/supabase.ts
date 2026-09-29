@@ -11,7 +11,6 @@ export const supabase: SupabaseClient | null =
       })
     : null;
 
-export const isSupabaseConfigured = supabase !== null;
 
 if (!supabase && import.meta.env.DEV)
   console.info(

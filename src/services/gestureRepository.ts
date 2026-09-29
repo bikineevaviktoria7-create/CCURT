@@ -1,13 +1,11 @@
-import { requireAdmin } from "./accessService";
 import { supabase } from "../lib/supabase";
 import { localDb } from "../lib/localDb";
 import { FEATURE_VERSION } from "../vision/features";
-import { GESTURE_BUNDLE_VERSION, validateGestureBundle } from "./gestureValidation";
-import type { GestureSample, Hand } from "../vision/types";
+import type { GestureSample } from "../vision/types";
 import type { GestureErrorCode } from "../types/vision";
 
 // One place that knows where gesture samples and content (description, photo,
-// hints) come from. Priority: Supabase → local admin data (IndexedDB) → the
+// hints) come from. Priority: Supabase → saved sample data (IndexedDB) → the
 // bundled backup public/data/samples.json. The app keeps working if any is missing.
 
 export interface GestureContent {
@@ -25,6 +23,8 @@ export interface GestureBundle {
   samples: GestureSample[];
 }
 
+// Keep legacy keys so existing lesson samples remain available.
+const GESTURE_BUNDLE_VERSION = 1;
 const LOCAL_SAMPLES = "admin:samples";
 const LOCAL_CONTENT = "admin:content";
 
@@ -174,143 +174,4 @@ export const gestureRepository = {
       listeners.delete(listener);
     };
   },
-  /** Where admin changes are written: the database when available, else this browser. */
-  target(isAdmin: boolean): "remote" | "local" {
-    return supabase && isAdmin ? "remote" : "local";
-  },
-
-  async addSamples(
-    target: "remote" | "local",
-    samples: Omit<GestureSample, "id" | "featureVersion">[],
-    authorId?: string,
-  ) {
-    requireAdmin();
-    const complete: GestureSample[] = samples.map((sample) => ({
-      ...sample,
-      id: crypto.randomUUID(),
-      featureVersion: FEATURE_VERSION,
-      createdAt: new Date().toISOString(),
-    }));
-    if (target === "remote" && supabase) {
-      const { error } = await supabase.from("gesture_samples").insert(
-        complete.map((sample) => ({
-          id: sample.id,
-          gesture_id: sample.gestureId,
-          author_id: authorId ?? null,
-          features: sample.features ?? null,
-          sequence: sample.sequence ?? null,
-          duration_ms: sample.durationMs ? Math.round(sample.durationMs) : null,
-          landmarks: sample.landmarks ?? [],
-          handedness: sample.handedness ?? null,
-          feature_version: sample.featureVersion,
-        })),
-      );
-      if (error) throw new Error(`Не удалось сохранить эталоны: ${error.message}`);
-    } else {
-      await localDb.set(LOCAL_SAMPLES, [...(await localSamples()), ...complete]);
-    }
-    this.invalidate();
-    return complete.length;
-  },
-
-  async deleteSamples(target: "remote" | "local", gestureId: string) {
-    requireAdmin();
-    if (target === "remote" && supabase) {
-      const { error } = await supabase.from("gesture_samples").delete().eq("gesture_id", gestureId);
-      if (error) throw new Error(`Не удалось удалить эталоны: ${error.message}`);
-    }
-    await localDb.set(
-      LOCAL_SAMPLES,
-      (await localSamples()).filter((sample) => sample.gestureId !== gestureId),
-    );
-    this.invalidate();
-  },
-
-  async saveContent(target: "remote" | "local", content: GestureContent) {
-    requireAdmin();
-    if (target === "remote" && supabase) {
-      const { error } = await supabase
-        .from("gestures")
-        .update({
-          description: content.description ?? null,
-          reference_image_url: content.imageUrl ?? null,
-          ...(content.hints ? { hints: content.hints } : {}),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", content.id);
-      if (error) throw new Error(`Не удалось сохранить описание: ${error.message}`);
-    } else {
-      const all = await localContent();
-      all[content.id] = { ...all[content.id], ...content };
-      await localDb.set(LOCAL_CONTENT, all);
-    }
-    this.invalidate();
-  },
-
-  /** Uploads a gesture photo and returns its public URL (or a data URL locally). */
-  async uploadImage(target: "remote" | "local", gestureId: string, blob: Blob) {
-    requireAdmin();
-    const extension = blob.type === "image/webp" ? "webp" : "jpg";
-    if (target === "remote" && supabase) {
-      const path = `gestures/${gestureId}.${extension}`;
-      const { error } = await supabase.storage
-        .from("gesture-media")
-        .upload(path, blob, { upsert: true, contentType: blob.type, cacheControl: "3600" });
-      if (error) throw new Error(`Не удалось загрузить фото: ${error.message}`);
-      const { data } = supabase.storage.from("gesture-media").getPublicUrl(path);
-      return `${data.publicUrl}?v=${Date.now()}`;
-    }
-    return new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error("Не удалось прочитать фото"));
-      reader.readAsDataURL(blob);
-    });
-  },
-
-  /**
-   * Everything needed to restore recognition: goes to public/data/samples.json.
-   * Photos are left out on purpose: the file is public after deploy, and
-   * recognition needs only hand coordinates.
-   */
-  async exportBundle(tolerance?: number): Promise<GestureBundle> {
-    requireAdmin();
-    const { samples, content } = await loadAll();
-    return {
-      version: GESTURE_BUNDLE_VERSION,
-      exportedAt: new Date().toISOString(),
-      ...(tolerance ? { tolerance } : {}),
-      gestures: Object.values(content).map((item) => ({ ...item, imageUrl: undefined })),
-      samples: samples.map((sample) => ({ ...sample, landmarks: sample.landmarks ?? undefined })),
-    };
-  },
-
-  async importBundle(target: "remote" | "local", bundle: unknown) {
-    requireAdmin();
-    validateGestureBundle(bundle);
-    const samples = bundle.samples;
-    await this.addSamples(
-      target,
-      samples.map((sample) => ({
-        gestureId: sample.gestureId,
-        features: sample.features,
-        sequence: sample.sequence,
-        durationMs: sample.durationMs,
-        landmarks: sample.landmarks,
-        handedness: sample.handedness,
-      })),
-    );
-    for (const item of bundle.gestures) {
-      if (!item.description && !item.imageUrl) continue;
-      let imageUrl = item.imageUrl;
-      if (target === "remote" && imageUrl?.startsWith("data:")) {
-        const blob = await (await fetch(imageUrl)).blob();
-        imageUrl = await this.uploadImage(target, item.id, blob);
-      }
-      await this.saveContent(target, { ...item, imageUrl });
-    }
-    return samples.length;
-  },
 };
-
-export type SampleInput = Omit<GestureSample, "id" | "featureVersion"> & { handedness?: Hand };
