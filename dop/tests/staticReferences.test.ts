@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { lessons } from "../../src/data/lessons.ts";
 import { FEATURE_COUNT, FEATURE_VERSION, extractHandFeatures } from "../../src/vision/features.ts";
-import { buildStaticModels, buildStaticModel, compareStaticGesture, isStaticSample } from "../../src/vision/staticMatcher.ts";
+import { buildStaticModels, buildStaticModel, compareStaticGesture, isStaticSample, withShapeAliases } from "../../src/vision/staticMatcher.ts";
+import { findLetterByLabel } from "../../src/data/alphabet.ts";
 import { createGestureRecognizer } from "../../src/vision/recognizer.ts";
 import type { GestureSample } from "../../src/vision/types.ts";
 import { makeHand, OPEN, toImage } from "./helpers/syntheticHand.ts";
@@ -46,8 +47,9 @@ test("every active gesture uses static matching; missing key poses are explicit"
       assert.equal(result.holdProgress, 0);
     }
   }
-  assert.deepEqual(missing.sort(), ["Д", "З", "Ц", "Ё", "Й", "Щ", "К", "Ь", "Ъ", "Привет", "Пока", "Да", "Нет"].sort());
-  assert.equal(models.size, 24);
+  // Слова практикуются дактилем по буквам; у Ё, Й, Щ своих эталонов нет — их сравнивают по Е, И, Ш.
+  assert.deepEqual(missing.sort(), ["Ё", "Й", "Щ"].sort());
+  assert.equal(models.size, 30);
 });
 
 test("a position-only word uses real static comparison and hold, and resets between steps", () => {
@@ -90,4 +92,21 @@ test("invalid or movement-only local records cannot hide valid bundled static re
     assert.equal(isStaticSample(loaded.samples[0]!), true);
     assert.equal(loaded.samples[0]?.id, sample.id);
   }
+});
+
+test("Ё, Й, Щ are compared by the hand shape of Е, И, Ш; own samples take priority", () => {
+  const id = (label: string) => findLetterByLabel(label)!.id;
+  const pairs = [["Ё", "Е"], ["Й", "И"], ["Щ", "Ш"]].map(([alias, base]) => [id(alias!), id(base!)] as const);
+  const aliased = withShapeAliases(models, pairs);
+  for (const [aliasId, baseId] of pairs) {
+    assert.equal(models.has(aliasId), false);
+    const base = aliased.get(baseId)!;
+    assert.deepEqual(aliased.get(aliasId)?.samples, base.samples);
+    assert.equal(aliased.get(aliasId)?.gestureId, aliasId);
+    // Эталон базовой буквы засчитывается и для буквы с движением, и для самой базовой буквы.
+    assert.equal(compareStaticGesture(base.samples[0]!, aliasId, aliased, bundle.tolerance)?.matched, true);
+    assert.equal(compareStaticGesture(base.samples[0]!, baseId, aliased, bundle.tolerance)?.matched, true);
+  }
+  const own = buildStaticModel(pairs[0]![0], [sample.features!]);
+  assert.equal(withShapeAliases(new Map([...models, [own.gestureId, own]]), pairs).get(own.gestureId), own);
 });

@@ -11,7 +11,7 @@ import {
 } from "./normalize.ts";
 import type { FeatureGroup, FingerName, Hand, Point3 } from "./types.ts";
 
-/** Bump when the feature layout changes: old samples must be recomputed. */
+/** Увеличивайте при изменении набора признаков: старые эталоны нужно пересчитать. */
 export const FEATURE_VERSION = 1;
 
 export interface FeatureSpec {
@@ -24,26 +24,26 @@ const specs: FeatureSpec[] = [];
 const add = (key: string, group: FeatureGroup, weight: number) =>
   specs.push({ key, group, weight });
 
-// 1. Flexion of every joint (0 = straight, 1 = folded back on itself).
+// 1. Сгибание каждого сустава (0 = прямой, 1 = полностью согнут).
 for (const finger of FINGERS)
   for (let joint = 1; joint <= 3; joint++)
     add(`${finger}.flex${joint}`, finger, 1);
-// 2. Where the thumb tip is relative to the other fingers and the palm.
+// 2. Где кончик большого пальца относительно других пальцев и ладони.
 for (const target of [8, 12, 16, 20, 5, 9])
   add(`thumb.tipTo${target}`, "thumb", 0.8);
-// 3. Spread between neighbouring fingers and fingertip contacts.
+// 3. Разведение соседних пальцев и касания кончиков.
 for (const pair of ["thumb-index", "index-middle", "middle-ring", "ring-pinky"])
   add(`spread.${pair}`, "spread", 0.8);
 for (const pair of ["8-12", "12-16", "16-20"])
   add(`spread.contact${pair}`, "spread", 0.6);
-// 4. Palm orientation: normal of the palm plane and wrist → middle finger direction.
+// 4. Ориентация ладони: нормаль к плоскости ладони и направление запястье → средний палец.
 for (const axis of ["x", "y", "z"]) add(`orientation.normal.${axis}`, "orientation", 0.7);
 for (const axis of ["x", "y", "z"]) add(`orientation.direction.${axis}`, "orientation", 0.7);
 
 export const FEATURE_LAYOUT: readonly FeatureSpec[] = specs;
 export const FEATURE_COUNT = specs.length;
 
-/** Position of a named feature in the vector; throws for an unknown key. */
+/** Позиция именованного признака в векторе; для неизвестного ключа бросает ошибку. */
 export function featureIndex(key: string) {
   const index = FEATURE_LAYOUT.findIndex((spec) => spec.key === key);
   if (index < 0) throw new Error(`Неизвестный признак ${key}`);
@@ -105,7 +105,7 @@ export function extractHandFeatures(
   return features;
 }
 
-/** Mean flexion of one finger, 0 = straight. */
+/** Среднее сгибание одного пальца, 0 = прямой. */
 export function fingerFlexion(features: readonly number[], finger: FingerName) {
   let sum = 0;
   for (let joint = 1; joint <= 3; joint++)
@@ -113,7 +113,7 @@ export function fingerFlexion(features: readonly number[], finger: FingerName) {
   return sum / 3;
 }
 
-/** Reads a stored orientation vector back from the feature vector. */
+/** Читает сохранённый вектор ориентации обратно из вектора признаков. */
 export function readVector(
   features: readonly number[],
   prefix: "orientation.normal" | "orientation.direction",
@@ -125,7 +125,7 @@ export function readVector(
   };
 }
 
-/** Indexes of the features that belong to a group. */
+/** Индексы признаков, входящих в группу. */
 export function groupIndexes(group: FeatureGroup) {
   return FEATURE_LAYOUT.flatMap((spec, index) =>
     spec.group === group ? [index] : [],

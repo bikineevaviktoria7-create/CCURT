@@ -1,6 +1,6 @@
-import { lessons as lessonData } from "../data/lessons";
 import type { CSSProperties } from "react";
 import { BookOpen, Flame } from "lucide-react";
+import { lessons as lessonData } from "../data/lessons";
 import { ProgressChart } from "../components/progress/ProgressChart";
 import { streakDays } from "../services/progressService";
 import { Leaderboard } from "../components/progress/Leaderboard";

@@ -43,7 +43,6 @@ export class MediaPipeVisionAdapter implements VisionAdapter {
 
   async initialize() {
     this.handLandmarker = await getHandLandmarker();
-
   }
 
   async start(video: HTMLVideoElement) {
@@ -95,7 +94,7 @@ export class MediaPipeVisionAdapter implements VisionAdapter {
       this.lastEmitAt = now;
       this.callbacks.onResult(result);
     }
-    // Publish semantics first so the final canvas frame uses the success colors.
+    // Сначала отдаём результат, чтобы последний кадр на canvas был нарисован цветами успеха.
     this.callbacks.onFrame(chosen?.image ?? []);
     if (result.status === "success") {
       this.finished = true;
@@ -109,7 +108,7 @@ export function createMediaPipeVisionAdapter(options: RecognizerOptions, callbac
   return new MediaPipeVisionAdapter(options, callbacks);
 }
 
-/** Picks the adapter: demo only in development, otherwise MediaPipe. */
+/** Выбирает адаптер: демо только в разработке, иначе MediaPipe. */
 export function createVisionAdapter(
   gesture: Gesture,
   mode: VisionMode,

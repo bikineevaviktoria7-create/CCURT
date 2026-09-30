@@ -82,7 +82,8 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
                   ready ||
                   (theory
                     ? index < state.currentGestureIndex
-                    : Boolean(state.attempts[index]?.success))
+                    : Boolean(state.attempts[index]?.success) ||
+                      state.attempts[index]?.assessed === false)
                     ? "done"
                     : state.attempts[index]?.skipped
                       ? "skipped"

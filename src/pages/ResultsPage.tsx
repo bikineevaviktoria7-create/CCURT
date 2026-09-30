@@ -70,6 +70,8 @@ export function ResultsPage() {
   const nextAvailable = passed && next && lessonStatus(next, lessons, progress) !== "locked";
   const errors = frequentErrors(result.attempts).filter(({ label }) => label !== ERROR_LABELS.LOW_LIGHT);
   const seconds = Math.floor(result.durationMs / 1000);
+  const assessed = result.attempts.filter((attempt) => attempt.assessed !== false);
+  const unassessedCount = result.attempts.length - assessed.length;
   return (
     <Page>
       <section className="results-screen">
@@ -115,22 +117,39 @@ export function ResultsPage() {
           ))}
         </div>
         <motion.div className="result-stats card" initial={reduced ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduced ? 0 : 1.05, duration: 0.35 }}>
-          <div>
-            <strong>{result.accuracy}%</strong>
-            <span>Точность</span>
-          </div>
+          {assessed.length ? (
+            <div>
+              <strong>{result.accuracy}%</strong>
+              <span>Точность</span>
+            </div>
+          ) : (
+            <div>
+              <strong><Check size={32} aria-hidden="true" /></strong>
+              <span>Урок изучен</span>
+            </div>
+          )}
           <div>
             <ScoreReveal score={result.score} />
             <span>Очки</span>
           </div>
-          <div>
-            <strong>
-              {result.attempts.filter((attempt) => attempt.success).length} /{" "}
-              {result.attempts.length}
-            </strong>
-            <span>Правильные жесты</span>
-          </div>
+          {assessed.length ? (
+            <div>
+              <strong>
+                {assessed.filter((attempt) => attempt.success).length} /{" "}
+                {assessed.length}
+              </strong>
+              <span>Правильные жесты</span>
+            </div>
+          ) : (
+            <div>
+              <strong>{unassessedCount}</strong>
+              <span>Изучено без оценки</span>
+            </div>
+          )}
         </motion.div>
+        {assessed.length > 0 && unassessedCount > 0 && (
+          <p className="result-time">Изучено без оценки: {unassessedCount}</p>
+        )}
         <p className="result-time">
           Время занятия: {String(Math.floor(seconds / 60)).padStart(2, "0")}:
           {String(seconds % 60).padStart(2, "0")}

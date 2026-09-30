@@ -6,8 +6,8 @@ import type { HandLandmarkerResult } from "@mediapipe/tasks-vision";
 import { resolveHandedness } from "./normalize";
 import type { HandObservation } from "./types";
 
-// Browser-only: loads MediaPipe once per page and turns its raw output into
-// HandObservation objects for the pure recognition code.
+// Только для браузера: загружает MediaPipe один раз на страницу и превращает его сырой
+// вывод в объекты HandObservation для чистого кода распознавания.
 
 const BASE = import.meta.env.BASE_URL;
 const WASM_PATH = `${BASE}mediapipe/wasm`;
@@ -16,14 +16,14 @@ const HAND_MODELS = [
   "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
 ];
 
-/** Local model first (committed to the repo); Google's CDN as a fallback. */
+/** Сначала локальная модель (лежит в репозитории), CDN Google — запасной вариант. */
 async function fetchModel(urls: readonly string[]) {
   let lastError: unknown;
   for (const url of urls) {
     try {
       const response = await fetch(url);
       const type = response.headers.get("content-type") ?? "";
-      // The SPA fallback answers unknown paths with index.html — that is not a model.
+      // SPA-фолбэк отвечает на неизвестные пути страницей index.html — это не модель.
       if (!response.ok || type.includes("text/html")) throw new Error(`${url}: ${response.status}`);
       return new Uint8Array(await response.arrayBuffer());
     } catch (error) {
@@ -50,7 +50,7 @@ async function withDelegates<T>(create: (delegate: "GPU" | "CPU") => Promise<T>)
 
 let handPromise: Promise<HandLandmarker> | null = null;
 
-/** Shared HandLandmarker, created once; a failed load is retried on the next call. */
+/** Общий HandLandmarker, создаётся один раз; неудачная загрузка повторяется при следующем вызове. */
 export function getHandLandmarker() {
   handPromise ??= (async () => {
     const [files, model] = await Promise.all([getFileset(), fetchModel(HAND_MODELS)]);
@@ -71,7 +71,7 @@ export function getHandLandmarker() {
   return handPromise;
 }
 
-// MediaPipe requires strictly increasing timestamps across all calls.
+// MediaPipe требует строго возрастающих меток времени во всех вызовах.
 let lastTimestamp = 0;
 function nextTimestamp() {
   const now = performance.now();
@@ -79,7 +79,7 @@ function nextTimestamp() {
   return lastTimestamp;
 }
 
-/** Converts raw MediaPipe hand output into observations, skipping incomplete hands. */
+/** Превращает сырой вывод MediaPipe в наблюдения рук, пропуская неполные руки. */
 export function toObservations(result: HandLandmarkerResult): HandObservation[] {
   return result.landmarks.flatMap((image, index) => {
     const world = result.worldLandmarks[index];
@@ -96,13 +96,13 @@ export function toObservations(result: HandLandmarkerResult): HandObservation[] 
   });
 }
 
-/** Detects hands on the current video frame. */
+/** Находит руки на текущем кадре видео. */
 export function detectHands(landmarker: HandLandmarker, video: HTMLVideoElement) {
   return toObservations(landmarker.detectForVideo(video, nextTimestamp()));
 }
 
 let probe: HTMLCanvasElement | null = null;
-/** Average brightness 0–255 of a tiny copy of the frame. */
+/** Средняя яркость 0–255 уменьшенной копии кадра. */
 export function measureBrightness(video: HTMLVideoElement) {
   probe ??= document.createElement("canvas");
   probe.width = 32;
@@ -117,7 +117,7 @@ export function measureBrightness(video: HTMLVideoElement) {
   return sum / (data.length / 4);
 }
 
-/** Calls `callback` for every new video frame (requestVideoFrameCallback when available). */
+/** Вызывает `callback` на каждый новый кадр видео (через requestVideoFrameCallback, если он есть). */
 export function onVideoFrames(video: HTMLVideoElement, callback: () => void, onError?: (error: unknown) => void) {
   let active = true;
   let handle = 0;

@@ -1,7 +1,7 @@
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import { settingsService, useSettings } from "../../services/settingsService";
 
-/** Feedback preferences. Visual feedback is always on; the rest are optional. */
+/** Настройки обратной связи. Визуальная подсказка включена всегда, остальное — по желанию. */
 export function SettingsPanel() {
   const settings = useSettings();
   const toggle = (key: "soundEnabled" | "speechEnabled", label: string) => (

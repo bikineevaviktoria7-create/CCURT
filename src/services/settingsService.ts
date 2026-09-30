@@ -9,22 +9,22 @@ const DEFAULT_SETTINGS: UserSettings = {
   calibrationCompleted: false,
 };
 
-/** Key-value storage the settings are kept in. */
+/** Хранилище «ключ — значение», в котором лежат настройки. */
 type SettingsStorage = Pick<typeof storage, "read" | "write">;
 
-/** Observable user settings and per-device preferences. */
+/** Наблюдаемые настройки пользователя и предпочтения устройства. */
 export interface SettingsStore {
-  /** Current settings snapshot (arrow field: passed to `useSyncExternalStore`). */
+  /** Текущий снимок настроек (поле-стрелка: передаётся в `useSyncExternalStore`). */
   get: () => UserSettings;
   update(patch: Partial<UserSettings>): void;
-  /** Adds a change listener and returns the unsubscribe function (arrow field). */
+  /** Добавляет подписчика на изменения и возвращает функцию отписки (поле-стрелка). */
   subscribe: (listener: () => void) => () => void;
   learnerName(userId: string): string | null;
   setLearnerName(userId: string, name: string): void;
   toleranceOverride(): number | null;
 }
 
-/** User settings in localStorage, observable via `useSyncExternalStore`. */
+/** Настройки пользователя в localStorage, наблюдаемые через `useSyncExternalStore`. */
 export class SettingsService implements SettingsStore {
   private storage: SettingsStorage;
   private current: UserSettings;
@@ -50,7 +50,7 @@ export class SettingsService implements SettingsStore {
     };
   };
 
-  /** Name for the "own name" lesson, per learner. */
+  /** Имя для урока «Своё имя», у каждого ученика своё. */
   learnerName(userId: string) {
     const value = this.storage.read(`learner-name:${userId}`);
     return typeof value === "string" ? value : null;
@@ -58,22 +58,30 @@ export class SettingsService implements SettingsStore {
 
   setLearnerName(userId: string, name: string) {
     this.storage.write(`learner-name:${userId}`, name);
-    this.current = { ...this.current }; // new snapshot so subscribed screens re-render
+    this.current = { ...this.current }; // новый снимок, чтобы подписанные экраны перерисовались
     this.notify();
   }
 
-  /** Previously saved recognition strictness on this device. */
+  /** Ранее сохранённая строгость распознавания на этом устройстве. */
   toleranceOverride() {
     const value = this.storage.read("recognition-tolerance");
-    return typeof value === "number" ? value : null;
+    // Значение из хранилища недоверенное: вне (0; 5] считаем, что настройки нет.
+    return typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 5 ? value : null;
   }
 
   private read(): UserSettings {
     const value = this.storage.read("settings");
     if (!isRecord(value)) return DEFAULT_SETTINGS;
-    const saved = { ...value };
-    delete saved.vibrationEnabled;
-    return { ...DEFAULT_SETTINGS, ...(saved as Partial<UserSettings>) };
+    // Каждое поле проверяется по типу; неверное значение заменяется значением по умолчанию.
+    const flag = (key: "soundEnabled" | "speechEnabled" | "calibrationCompleted") =>
+      typeof value[key] === "boolean" ? value[key] : DEFAULT_SETTINGS[key];
+    return {
+      dominantHand:
+        value.dominantHand === "left" || value.dominantHand === "right" ? value.dominantHand : DEFAULT_SETTINGS.dominantHand,
+      soundEnabled: flag("soundEnabled"),
+      speechEnabled: flag("speechEnabled"),
+      calibrationCompleted: flag("calibrationCompleted"),
+    };
   }
 
   private notify() {
@@ -81,10 +89,10 @@ export class SettingsService implements SettingsStore {
   }
 }
 
-/** Shared settings store of the app. */
+/** Общее хранилище настроек приложения. */
 export const settingsService: SettingsStore = new SettingsService(storage);
 
-/** Current settings; re-renders the component when they change. */
+/** Текущие настройки; перерисовывает компонент при их изменении. */
 export function useSettings() {
   return useSyncExternalStore(settingsService.subscribe, settingsService.get);
 }

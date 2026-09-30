@@ -9,7 +9,7 @@ import type {
 import type { GestureErrorCode } from "../types/vision";
 import type { Lesson } from "../types/lesson";
 
-/** Short Russian names of error codes for statistics. */
+/** Короткие русские названия кодов ошибок для статистики. */
 export const ERROR_LABELS: Record<GestureErrorCode, string> = {
   FINGER_NOT_BENT: "Сгибание пальцев",
   FINGER_NOT_STRAIGHT: "Выпрямление пальцев",
@@ -23,6 +23,7 @@ export const ERROR_LABELS: Record<GestureErrorCode, string> = {
   LOW_LIGHT: "Освещение",
   WRONG_HAND: "Выбор руки",
   WRONG_GESTURE: "Показан другой жест",
+  // Коды движения нужны только для старых результатов.
   START_POSITION: "Начальное положение", END_POSITION: "Завершение движения",
   WRONG_DIRECTION: "Направление движения", AMPLITUDE_TOO_SMALL: "Недостаточная амплитуда",
   AMPLITUDE_TOO_LARGE: "Избыточная амплитуда", TOO_FAST: "Слишком быстро",
@@ -31,7 +32,8 @@ export const ERROR_LABELS: Record<GestureErrorCode, string> = {
   INCOMPLETE_MOVEMENT: "Незавершённое движение",
   MOVEMENT_MISMATCH: "Сходство движения",
 };
-/** Progress of a learner who has not finished any lesson. */
+
+/** Прогресс ученика, который ещё не прошёл ни одного урока. */
 export function emptyProgress(): LearningProgress {
   return {
     lessons: {},
@@ -52,20 +54,25 @@ const isValidDate = (value: unknown): value is string =>
 const isValidMode = (value: Record<string, unknown>) =>
   !("mode" in value) || (Object.hasOwn(value, "mode") && (value.mode === "real" || value.mode === "demo"));
 
-/** Validates one stored gesture attempt. */
+/** `assessed` может быть только `false`, и такая попытка не успешна и не пропущена. */
+const isValidAssessed = (value: Record<string, unknown>) =>
+  !("assessed" in value) ||
+  (Object.hasOwn(value, "assessed") && value.assessed === false && value.success === false && value.skipped === false);
+
+/** Проверяет одну сохранённую попытку жеста. */
 export function isGestureAttempt(value: unknown): value is GestureAttempt {
   return isRecord(value) &&
     hasFields(value, ["gestureId", "success", "skipped", "errorCodes", "durationMs"]) &&
     isValidId(value.gestureId) && typeof value.success === "boolean" &&
     typeof value.skipped === "boolean" && !(value.success && value.skipped) &&
-    isNumberIn(value.durationMs, 0) && isValidMode(value) &&
+    isNumberIn(value.durationMs, 0) && isValidMode(value) && isValidAssessed(value) &&
     (!("confidence" in value) || (Object.hasOwn(value, "confidence") && isNumberIn(value.confidence, 0, 1))) &&
     Array.isArray(value.errorCodes) && Array.from(value.errorCodes).every(
       (code: unknown) => typeof code === "string" && Object.hasOwn(ERROR_LABELS, code),
     );
 }
 
-/** Validates one stored lesson result, including its attempts. */
+/** Проверяет один сохранённый результат урока вместе с попытками. */
 export function isLessonResult(value: unknown): value is LessonResult {
   return isRecord(value) &&
     hasFields(value, ["sessionId", "lessonId", "completedAt", "score", "accuracy", "stars", "durationMs", "attempts"]) &&
@@ -84,42 +91,48 @@ function isLessonProgress(value: unknown): value is LessonProgress {
     isNumberIn(value.stars, 0, 3) && Number.isInteger(value.stars);
 }
 
-/** True if the lesson was passed (at least one star); only such results count as progress. */
+/** Урок пройден (хотя бы одна звезда); только такие результаты идут в прогресс. */
 export function isPassedResult(result: LessonResult) {
   return result.stars > 0;
 }
 
-/** True if the result or any attempt was produced in demo mode. */
+/** Результат или хотя бы одна попытка получены в демо-режиме. */
 export function isDemoResult(result: LessonResult) {
   return result.mode === "demo" || result.attempts.some((attempt) => attempt.mode === "demo");
 }
 
-/** Score, accuracy and stars of a finished lesson. */
+/**
+ * Очки, точность и звёзды завершённого урока.
+ * Жесты без автоматической оценки (`assessed: false`) не входят в точность;
+ * урок только из таких жестов считается изученным: точность 100, 1 звезда, 0 очков.
+ */
 export function calculateLessonResult(
   lessonId: string,
   attempts: GestureAttempt[],
   startedAt: number,
   sessionId: string,
 ): LessonResult {
+  const assessed = attempts.filter((attempt) => attempt.assessed !== false);
+  const studiedOnly = attempts.length > 0 && assessed.length === 0;
   let earnedPoints = 0;
-  for (const attempt of attempts) {
+  for (const attempt of assessed) {
     if (attempt.success) earnedPoints += Math.max(60, 100 - attempt.errorCodes.length * 8);
   }
-  const accuracy = attempts.length ? Math.round(earnedPoints / attempts.length) : 0;
+  const accuracy = studiedOnly ? 100 : assessed.length ? Math.round(earnedPoints / assessed.length) : 0;
   return {
     sessionId,
     lessonId,
     mode: attempts.some((attempt) => attempt.mode === "demo") ? "demo" : "real",
     completedAt: new Date().toISOString(),
     accuracy,
-    score: accuracy * 10,
-    stars: accuracy >= 90 ? 3 : accuracy >= 70 ? 2 : accuracy >= 40 ? 1 : 0,
+    score: studiedOnly ? 0 : accuracy * 10,
+    stars: studiedOnly ? 1 : accuracy >= 90 ? 3 : accuracy >= 70 ? 2 : accuracy >= 40 ? 1 : 0,
     durationMs: Date.now() - startedAt,
     attempts,
   };
 }
 
-/** Error labels sorted by how often they occurred. */
+/** Названия ошибок, отсортированные по частоте. */
 export function frequentErrors(attempts: readonly GestureAttempt[]) {
   const counts = new Map<GestureErrorCode, number>();
   for (const attempt of attempts)
@@ -130,7 +143,7 @@ export function frequentErrors(attempts: readonly GestureAttempt[]) {
     .map(([code, count]) => ({ label: ERROR_LABELS[code], count }));
 }
 
-/** Status of a lesson on the learning path. */
+/** Статус урока на пути обучения. */
 export function lessonStatus(
   lesson: Lesson,
   lessons: readonly Lesson[],
@@ -158,10 +171,10 @@ function applyResult(progress: LearningProgress, result: LessonResult) {
   return true;
 }
 
-/** Key-value storage the progress is kept in. */
+/** Хранилище «ключ — значение», в котором лежит прогресс. */
 type ProgressStorage = Pick<typeof storage, "read" | "write">;
 
-/** Lesson progress of a learner: reading, saving and merging results. */
+/** Прогресс ученика по урокам: чтение, сохранение и объединение результатов. */
 export interface ProgressStore {
   getProgress(userId: string): LearningProgress;
   getResult(userId: string, sessionId: string): LessonResult | undefined;
@@ -169,7 +182,7 @@ export interface ProgressStore {
   mergeResults(userId: string, results: readonly LessonResult[]): LearningProgress;
 }
 
-/** Reads and saves lesson progress of the current user in localStorage. */
+/** Читает и сохраняет прогресс текущего пользователя в localStorage. */
 export class ProgressService implements ProgressStore {
   private storage: ProgressStorage;
   private canReadProgress: (userId: string) => boolean;
@@ -196,7 +209,7 @@ export class ProgressService implements ProgressStore {
     }
     const validSessions = value.sessions.filter(isLessonResult).filter(isPassedResult);
     const sessions = validSessions.filter((item) => !isDemoResult(item));
-    // Repair aggregates if explicitly marked demo data was persisted previously.
+    // Чиним сводные данные, если раньше были сохранены явно помеченные демо-данные.
     const demoLessons = new Set(validSessions.filter(isDemoResult).map((item) => item.lessonId));
     const rebuilt = emptyProgress();
     for (const session of sessions) if (demoLessons.has(session.lessonId)) applyResult(rebuilt, session);
@@ -229,7 +242,7 @@ export class ProgressService implements ProgressStore {
       this.storage.write(`demo-result:${userId}:${result.sessionId}`, result);
       return progress;
     }
-    // A failed attempt is kept only to show its results page; it never becomes progress.
+    // Неудачная попытка хранится только для страницы итогов и никогда не становится прогрессом.
     if (isLessonResult(result) && !isPassedResult(result)) {
       this.storage.write(`failed-result:${userId}:${result.sessionId}`, result);
       return progress;
@@ -239,7 +252,7 @@ export class ProgressService implements ProgressStore {
     return progress;
   }
 
-  /** Adds results from another device or the guest profile; duplicates are ignored. */
+  /** Добавляет результаты с другого устройства или из гостевого профиля; дубликаты пропускаются. */
   mergeResults(userId: string, results: readonly LessonResult[]) {
     if (!this.canReadProgress(userId)) return emptyProgress();
     const progress = this.getProgress(userId);
@@ -254,10 +267,10 @@ export class ProgressService implements ProgressStore {
   }
 }
 
-/** Shared progress store of the app. */
+/** Общее хранилище прогресса приложения. */
 export const progressService: ProgressStore = new ProgressService(storage, canReadProgress);
 
-/** Consecutive days (ending today or yesterday) with at least one finished lesson. */
+/** Число дней подряд (до сегодня или вчера) хотя бы с одним завершённым уроком. */
 export function streakDays(sessions: readonly LessonResult[], now = new Date()) {
   const days = new Set(sessions.filter(isPassedResult).map((session) => new Date(session.completedAt).toDateString()));
   const cursor = new Date(now);

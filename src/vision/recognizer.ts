@@ -7,17 +7,17 @@ import {
   type StaticGestureModel,
 } from "./staticMatcher.ts";
 import { HintSelector, HoldStabilizer } from "./stabilizer.ts";
-import type { GestureErrorCode, RecognitionResult, RecognitionStatus } from "../types/vision.ts";
 import type { Hand, HandObservation } from "./types.ts";
+import type { GestureErrorCode, RecognitionResult, RecognitionStatus } from "../types/vision.ts";
 
 export interface VisionFrame {
   t: number;
   hands: readonly HandObservation[];
-  /** Average frame brightness 0–255, measured occasionally. */
+  /** Средняя яркость кадра 0–255, измеряется время от времени. */
   brightness?: number;
 }
 
-/** Frame-by-frame recognizer for one lesson step. */
+/** Покадровый распознаватель для одного шага урока. */
 export interface GestureRecognizerApi {
   recognizeFrame(frame: VisionFrame): RecognitionResult;
   reset(): void;
@@ -31,10 +31,10 @@ export interface RecognizerOptions {
   labels: Readonly<Record<string, string>>;
   staticModels: ReadonlyMap<string, StaticGestureModel>;
   dominantHand: Hand;
-  /** 1 = default strictness; > 1 is more forgiving. */
+  /** 1 — обычная строгость; больше 1 — мягче. */
   tolerance?: number;
   diagnostics?: boolean;
-  /** Gesture-specific hint overrides from the database. */
+  /** Подсказки для конкретного жеста из базы данных, заменяют стандартные. */
   customHints?: Partial<Record<GestureErrorCode, string>>;
 }
 
@@ -47,12 +47,12 @@ interface Hint {
 
 const ALL_LANDMARKS = Array.from({ length: 21 }, (_, index) => index);
 
-/** Whether recorded samples exist for the target gesture. */
+/** Есть ли записанные эталоны для целевого жеста. */
 export function hasModel(options: Pick<RecognizerOptions, "targetId" | "staticModels">) {
   return options.staticModels.has(options.targetId);
 }
 
-/** Picks the signing hand: the dominant one if visible, otherwise the biggest. */
+/** Выбирает руку, которой показывают жест: ведущую, если она видна, иначе самую крупную. */
 export function pickHand(hands: readonly HandObservation[], dominant: Hand) {
   const size = (hand: HandObservation) => {
     const wrist = hand.image[0];
@@ -99,7 +99,7 @@ export class GestureRecognizer implements GestureRecognizerApi {
     this.noHandSince = 0;
   }
 
-  /** Whether the recognizer can evaluate the target (samples exist or visibility exercise). */
+  /** Может ли распознаватель оценить цель (есть эталоны или это упражнение на видимость руки). */
   get available() {
     return this.canEvaluate();
   }
@@ -234,10 +234,9 @@ export class GestureRecognizer implements GestureRecognizerApi {
       predictedLabel: wrong ? labels[wrong.gestureId] : undefined,
     });
   }
-
 }
 
-/** Creates a recognizer for one lesson step. */
+/** Создаёт распознаватель для одного шага урока. */
 export function createGestureRecognizer(options: RecognizerOptions): GestureRecognizerApi {
   return new GestureRecognizer(options);
 }

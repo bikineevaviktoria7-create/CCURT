@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useReducer, useState } from "react";
 import { calculateLessonResult } from "../services/progressService.ts";
-import type { GestureAttempt, LessonSessionState } from "../types/progress";
 import type { Lesson } from "../types/lesson";
+import type { GestureAttempt, LessonSessionState } from "../types/progress";
 
-/** Actions of `lessonSessionReducer`; `total` is the number of gestures in the current stage. */
+/** Действия `lessonSessionReducer`; `total` — число жестов текущего этапа. */
 export type LessonSessionAction =
   | { type: "NEXT_THEORY"; total: number }
   | { type: "START_PRACTICE" }
@@ -11,7 +11,7 @@ export type LessonSessionAction =
   | { type: "ACCEPT"; attempt: GestureAttempt }
   | { type: "ADVANCE"; total: number };
 
-/** State at the start of a lesson: first theory card, no attempts. */
+/** Состояние в начале урока: первая карточка теории, попыток нет. */
 export function initialSession(now: number): LessonSessionState {
   return {
     phase: "learn",
@@ -21,7 +21,8 @@ export function initialSession(now: number): LessonSessionState {
     startedAt: now,
   };
 }
-/** Lesson order: all theory → ready → all practice → completed; out-of-order actions are ignored. */
+
+/** Порядок урока: вся теория → готовность → вся практика → завершение; действия не по порядку игнорируются. */
 export function lessonSessionReducer(
   state: LessonSessionState,
   action: LessonSessionAction,
@@ -67,7 +68,7 @@ export function lessonSessionReducer(
   }
 }
 
-/** Lesson session in React: timed transitions, countdown and the final result. */
+/** Сессия урока в React: переходы по таймеру, обратный отсчёт и итоговый результат. */
 export function useLessonSession(lesson: Lesson, paused = false) {
   const [state, dispatch] = useReducer(
     lessonSessionReducer,
@@ -90,7 +91,7 @@ export function useLessonSession(lesson: Lesson, paused = false) {
   }, [state.phase, lesson.gestures.length]);
   useEffect(() => {
     if (state.phase !== "prepare" || paused || !cameraReady) return;
-    // 950 ms success + three 650 ms beats = 2.9 s to change hand position.
+    // 950 мс успеха + три такта по 650 мс = 2,9 с, чтобы сменить положение руки.
     const timer = window.setTimeout(() => dispatch({ type: "COUNTDOWN_TICK" }), 650);
     return () => window.clearTimeout(timer);
   }, [state.phase, state.countdown, paused, cameraReady]);

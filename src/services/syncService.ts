@@ -6,8 +6,8 @@ import { isDemoResult, isLessonResult, isPassedResult, progressService } from ".
 import type { ProgressStore } from "./progressService";
 import type { LearningProgress, LessonResult } from "../types/progress";
 
-// Progress is local-first: screens read localStorage instantly, and results are
-// copied to Supabase in the background. Failed uploads wait in a queue.
+// Прогресс сначала локальный: экраны сразу читают localStorage, а результаты
+// копируются в Supabase в фоне. Неудачные отправки ждут в очереди.
 
 interface Pending {
   userId: string;
@@ -16,10 +16,10 @@ interface Pending {
 
 const QUEUE = "pending-sync";
 
-/** Key-value storage the upload queue is kept in. */
+/** Хранилище «ключ — значение», в котором лежит очередь отправки. */
 type SyncStorage = Pick<typeof storage, "read" | "write">;
 
-/** Everything the sync service talks to; passed in so tests can use doubles. */
+/** Всё, с чем работает сервис синхронизации; передаётся снаружи, чтобы в тестах подставлять заглушки. */
 export interface SyncDependencies {
   supabase: typeof supabase;
   storage: SyncStorage;
@@ -28,9 +28,9 @@ export interface SyncDependencies {
   mockAuthEnabled: boolean;
 }
 
-/** Background upload of lesson results with a retry queue. */
+/** Фоновая отправка результатов уроков с очередью повторов. */
 export interface SyncApi {
-  /** True when results are copied to Supabase (a plain value, not a method). */
+  /** True, если результаты копируются в Supabase (простое значение, не метод). */
   readonly enabled: boolean;
   push(userId: string, result: LessonResult): void;
   flush(): Promise<void>;
@@ -41,7 +41,7 @@ function warnRetryLater(detail: unknown) {
   console.warn("[SignStep] результат будет отправлен позже", detail);
 }
 
-/** Background upload of lesson results to Supabase with a retry queue. */
+/** Фоновая отправка результатов уроков в Supabase с очередью повторов. */
 export class SyncService implements SyncApi {
   readonly enabled: boolean;
   private supabase: typeof supabase;
@@ -61,14 +61,14 @@ export class SyncService implements SyncApi {
     this.flushing = null;
   }
 
-  /** Queues a real result for upload and starts sending it. */
+  /** Ставит реальный результат в очередь на отправку и начинает отправку. */
   push(userId: string, result: LessonResult) {
     if (this.mockAuthEnabled || !this.canReadProgress(userId) || !this.supabase || !isLessonResult(result) || isDemoResult(result) || !isPassedResult(result)) return;
     this.storage.write(QUEUE, [...this.queueWithout(userId, result.sessionId), { userId, result }]);
     void this.flush();
   }
 
-  /** Sends queued results of the signed-in user one by one; only one run at a time. */
+  /** По одному отправляет результаты вошедшего пользователя из очереди; одновременно идёт только один проход. */
   flush() {
     const client = this.supabase;
     if (this.mockAuthEnabled || !client) return Promise.resolve();
@@ -110,7 +110,7 @@ export class SyncService implements SyncApi {
     return this.flushing;
   }
 
-  /** Downloads results saved from other devices and merges them into local progress. */
+  /** Загружает результаты, сохранённые на других устройствах, и объединяет их с локальным прогрессом. */
   async pull(userId: string) {
     const client = this.supabase;
     if (this.mockAuthEnabled || !this.canReadProgress(userId) || !client) return this.progressService.getProgress(userId);
@@ -131,7 +131,7 @@ export class SyncService implements SyncApi {
       completedAt: row.completed_at,
     }) : null).filter(isLessonResult).filter((result) => !isDemoResult(result) && isPassedResult(result));
     const merged = this.progressService.mergeResults(userId, results);
-    // Anything recorded offline or as a guest before signing in goes up now.
+    // Всё, что записано офлайн или гостем до входа, отправляется сейчас.
     const remote = new Set(results.map((result) => result.sessionId));
     for (const session of merged.sessions)
       if (!remote.has(session.sessionId)) this.push(userId, session);
@@ -155,7 +155,7 @@ export class SyncService implements SyncApi {
   }
 }
 
-/** Shared sync service of the app. */
+/** Общий сервис синхронизации приложения. */
 export const syncService: SyncApi = new SyncService({
   supabase,
   storage,

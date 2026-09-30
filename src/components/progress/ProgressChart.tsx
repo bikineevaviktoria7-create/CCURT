@@ -1,8 +1,12 @@
 import type { LessonResult } from "../../types/progress";
 
-/** Accuracy of the last sessions as a small SVG line chart (no chart library). */
+const hasAssessed = (session: LessonResult) =>
+  session.attempts.some((attempt) => attempt.assessed !== false);
+
+/** Точность последних занятий в виде небольшого линейного SVG-графика (без библиотеки графиков). */
 function AccuracyTrend({ sessions }: { sessions: readonly LessonResult[] }) {
-  const recent = sessions.slice(-10);
+  // У занятий только из неоцениваемых жестов нет измеренной точности.
+  const recent = sessions.filter(hasAssessed).slice(-10);
   if (recent.length < 2)
     return (
       <p className="chart-empty">
@@ -55,6 +59,7 @@ export function ProgressChart({ sessions }: { sessions: readonly LessonResult[] 
   const counts = { correct: 0, skipped: 0, other: 0 };
   for (const session of recent) {
     for (const attempt of session.attempts) {
+      if (attempt.assessed === false) continue;
       if (attempt.success) counts.correct++;
       else if (attempt.skipped) counts.skipped++;
       else counts.other++;

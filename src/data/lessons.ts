@@ -1,8 +1,8 @@
 import { alphabet, findLetterByLabel, PLACEHOLDER_DESCRIPTION } from "./alphabet.ts";
 import type { Gesture, Lesson, LessonSection } from "../types/lesson";
 
-// Lesson structure lives in code (stable, works offline). Gesture descriptions and
-// photos are loaded from the database / saved samples and merged in useLessons.
+// Структура уроков хранится в коде (стабильна, работает офлайн). Описания и фото жестов
+// загружаются из базы или сохранённых эталонов и объединяются в useLessons.
 
 export const lessonSections: readonly LessonSection[] = [
   { id: "alphabet", number: 1, title: "Алфавит", description: "От первых букв к уверенной практике" },
@@ -20,8 +20,8 @@ const alphabetGroups = [
   ["А", "И", "М", "П", "Ш"], ["Б", "Г", "Л", "О", "Т"],
 ];
 
-// The remaining 18 letters: first the static ones grouped by similar hand shapes,
-// then letters with a movement (several of them are a known shape + movement).
+// Остальные 18 букв: сначала статичные, сгруппированные по похожей форме кисти,
+// затем буквы с движением (часть из них — знакомая форма плюс движение).
 const moreAlphabetLessons: { id: string; title: string; description: string; labels: string[] }[] = [
   { id: "21", title: "Согнутые пальцы", description: "Пальцы согнуты под прямым углом: Ж, Ф, Ч.", labels: ["Ж", "Ф", "Ч"] },
   { id: "22", title: "Кольцо, рожки, скрещивание", description: "Новые формы кисти: Р, Ы, Я.", labels: ["Р", "Ы", "Я"] },
@@ -38,15 +38,39 @@ const wordDefinitions = [
   ["repeat", "Повторите"], ["understand", "Понимать"], ["home", "Дом"], ["water", "Вода"],
 ] as const;
 
-// Only a recorded hand position is evaluated; movement is not assessed.
-export const words: readonly Gesture[] = wordDefinitions.map(([slug, label]) => ({
-  id: `word-${slug}`, slug, label, title: label, category: "word", kind: "static", positionOnly: true,
-  description: PLACEHOLDER_DESCRIPTION, difficulty: 1,
-}));
+/** Базовые слова раздела показываются дактилем: слово — последовательность букв с эталонами. */
+const wordSpellings: Readonly<Partial<Record<string, string>>> = {
+  hello: "ПРИВЕТ", goodbye: "ПОКА", yes: "ДА", no: "НЕТ",
+};
+
+/** Буквы слова по порядку (с повторами). */
+const spelling = (slug: string) => [...(wordSpellings[slug] ?? "")];
+
+// Слова без разбивки на буквы оцениваются только по положению руки, движение не проверяется.
+export const words: readonly Gesture[] = wordDefinitions.map(([slug, label]) => {
+  const spelled = spelling(slug);
+  return {
+    id: `word-${slug}`, slug, label, title: label, category: "word", kind: "static",
+    positionOnly: spelled.length === 0,
+    description: spelled.length
+      ? `Слово показывается дактилем, буква за буквой: ${spelled.join(" · ")}.`
+      : PLACEHOLDER_DESCRIPTION,
+    ...(spelled.length
+      ? {
+        referenceMedia: {
+          kind: "image" as const,
+          src: `/assets/gestures/words/word-${slug}.webp`,
+          alt: `Слово «${label}» дактилем: ${spelled.join(", ")}`,
+        },
+      }
+      : {}),
+    difficulty: 1,
+  };
+});
 
 export const allGestures: readonly Gesture[] = [...alphabet, ...words];
 
-// New IDs keep archived results from unrelated old word lessons from unlocking these topics.
+// Новые id не дают архивным результатам старых уроков слов открыть эти темы.
 const wordLessonDefinitions = [
   { id: "words-hello", title: "Привет", slugs: ["hello"] },
   { id: "words-goodbye", title: "Пока", slugs: ["goodbye"] },
@@ -73,10 +97,12 @@ export const lessons: readonly Lesson[] = [
     id, sectionId: "alphabet", number: alphabetTitles.length + index + 1, title, description,
     type: "learning", estimatedMinutes: 5, gestures: letters(labels),
   })),
+  // Теория — слово целиком (рисунок последовательности), практика — его буквы по порядку.
   ...wordLessonDefinitions.map<Lesson>(({ id, title, slugs }, index) => ({
     id, sectionId: "words", number: index + 1, title,
-    description: index < 4 ? "Изучите слово и положение руки" : "Повторите четыре изученных слова",
+    description: index < 4 ? "Изучите слово и покажите его дактилем по буквам" : "Покажите четыре изученных слова дактилем",
     type: index < 4 ? "learning" : "practice", estimatedMinutes: 5,
-    gestures: slugs.flatMap((slug) => words.filter((gesture) => gesture.slug === slug)),
+    theoryGestures: slugs.flatMap((slug) => words.filter((gesture) => gesture.slug === slug)),
+    gestures: slugs.flatMap((slug) => letters(spelling(slug))),
   })),
 ];

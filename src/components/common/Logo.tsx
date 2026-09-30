@@ -1,6 +1,6 @@
-import logoUrl from "../../../logo.png";
 import { Link } from "react-router-dom";
 import { APP_NAME, ROUTES } from "../../app/constants";
+import logoUrl from "../../../logo.png";
 
 export function Logo({ to = ROUTES.home }: { to?: string }) {
   return (

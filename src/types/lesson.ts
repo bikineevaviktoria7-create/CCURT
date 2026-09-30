@@ -15,7 +15,7 @@ export interface Gesture {
   title: string;
   category: "letter" | "word";
   kind: "static";
-  /** Full gesture includes movement; this trainer evaluates hand position only. */
+  /** Полный жест включает движение; тренажёр оценивает только положение руки. */
   positionOnly?: boolean;
   description: string;
   referenceMedia?: ReferenceMedia;
@@ -31,11 +31,11 @@ export interface Lesson {
   type: "learning" | "practice";
   estimatedMinutes: number;
   gestures: readonly Gesture[];
-  /** "name": the learner's own name is spelled letter by letter after the words. */
+  /** "name": после слов имя ученика показывается дактилем по буквам. */
   personalized?: "name";
-  /** Theory list when it differs from practice (each name letter shown once). */
+  /** Список для теории, если он отличается от практики (каждая буква имени — один раз). */
   theoryGestures?: readonly Gesture[];
-  /** Personalised lesson that still waits for the learner's name. */
+  /** Персональный урок, который ещё ждёт имя ученика. */
   needsName?: boolean;
   spelledName?: { name: string; skipped: string[]; letters: readonly Gesture[] };
 }

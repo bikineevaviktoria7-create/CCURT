@@ -184,10 +184,20 @@ test("word curriculum contains six independent sequential topics without remappi
   assert.equal(lessons.length, 22);
   assert.deepEqual(words.map(lesson => lesson.title), ["Привет", "Пока", "Да", "Нет", "Повторение", "Итоговый урок"]);
   assert.deepEqual(words.map(lesson => lesson.number), [1, 2, 3, 4, 5, 6]);
-  const gestureIds = words.slice(0, 4).map(lesson => lesson.gestures[0]!.id);
+  // Слово изучается целиком, а практикуется дактилем по буквам.
+  assert.deepEqual(words.slice(0, 4).map(lesson => lesson.gestures.map(gesture => gesture.label).join("")), ["ПРИВЕТ", "ПОКА", "ДА", "НЕТ"]);
+  for (const lesson of words.slice(0, 4)) {
+    assert.equal(lesson.theoryGestures?.length, 1);
+    assert.equal(lesson.theoryGestures?.[0]?.category, "word");
+    assert.ok(lesson.theoryGestures?.[0]?.referenceMedia, "word lesson shows the spelled sequence");
+    assert.ok(lesson.gestures.every(gesture => gesture.category === "letter"));
+  }
+  const letterIds = words.slice(0, 4).flatMap(lesson => lesson.gestures.map(gesture => gesture.id));
+  const wordIds = words.slice(0, 4).map(lesson => lesson.theoryGestures![0]!.id);
   for (const lesson of words.slice(4)) {
     assert.equal(lesson.type, "practice");
-    assert.deepEqual(lesson.gestures.map(gesture => gesture.id), gestureIds);
+    assert.deepEqual(lesson.gestures.map(gesture => gesture.id), letterIds);
+    assert.deepEqual(lesson.theoryGestures?.map(gesture => gesture.id), wordIds);
   }
   assert.ok(words.every(lesson => !/^\d+$/.test(lesson.id)), "old word results keep their own IDs");
 });

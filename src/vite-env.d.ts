@@ -3,7 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_ANON_KEY?: string;
-  /** Global recognition strictness, 1 = default, >1 more forgiving. */
+  /** Общая строгость распознавания: 1 — по умолчанию, >1 — мягче. */
   readonly VITE_RECOGNITION_TOLERANCE?: string;
 }
 

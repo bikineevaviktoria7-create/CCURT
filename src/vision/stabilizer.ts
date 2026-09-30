@@ -1,8 +1,8 @@
 import type { GestureErrorCode } from "../types/vision.ts";
 
 /**
- * A static gesture counts only when it wins most recent frames and is held for a
- * moment — no accidental success from one lucky frame.
+ * Статичный жест засчитывается, только если он побеждает в большинстве последних кадров
+ * и удерживается мгновение, — никакого случайного успеха из-за одного удачного кадра.
  */
 export class HoldStabilizer {
   private window: boolean[] = [];
@@ -38,8 +38,8 @@ export class HoldStabilizer {
 }
 
 /**
- * Keeps the hint steady: shows the most frequent recent mistake and changes the
- * text at most once per `minMs`, so it does not flicker between frames.
+ * Держит подсказку стабильной: показывает самую частую недавнюю ошибку и меняет
+ * текст не чаще раза в `minMs`, чтобы он не мигал между кадрами.
  */
 export class HintSelector<T extends { code: GestureErrorCode; message: string }> {
   private history: (T | undefined)[] = [];

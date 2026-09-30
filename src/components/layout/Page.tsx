@@ -43,7 +43,7 @@ export function Page({
                 aria-label="Выйти"
                 onClick={() => {
                   logout();
-                  // Commit navigation together with the cleared user, before the route guard redirects.
+                  // Переход выполняем вместе со сбросом пользователя, до редиректа защиты маршрута.
                   navigate(ROUTES.home, { replace: true, flushSync: true });
                 }}
               >

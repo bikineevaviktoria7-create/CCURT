@@ -15,7 +15,7 @@ import {
 import type { Gesture, Lesson } from "../types/lesson";
 import type { LoadStatus } from "../types/loading";
 
-/** Lessons never wait longer than this for descriptions/photos from the network. */
+/** Дольше этого уроки не ждут описаний и фото из сети. */
 const CONTENT_TIMEOUT_MS = 4000;
 
 async function loadContent(): Promise<Record<string, GestureContent>> {
@@ -35,8 +35,8 @@ async function loadContent(): Promise<Record<string, GestureContent>> {
 
 function withContent(gesture: Gesture, content: Record<string, GestureContent>): Gesture {
   const item = content[gesture.id];
-  // The dactyl chart drawings are the reference; a saved photo is
-  // only a fallback for gestures that have no drawing (words).
+  // Эталон — рисунки дактиля; сохранённое фото — только запасной вариант
+  // для жестов без рисунка (слова).
   const drawing = gestureReferences[gesture.id];
   gesture = { ...gesture, referenceMedia: drawing ?? gesture.referenceMedia };
   if (!item) return gesture;
@@ -56,10 +56,13 @@ async function loadLessons(): Promise<readonly Lesson[]> {
   return lessonData.map((lesson) => ({
     ...lesson,
     gestures: lesson.gestures.map((gesture) => withContent(gesture, content)),
+    ...(lesson.theoryGestures
+      ? { theoryGestures: lesson.theoryGestures.map((gesture) => withContent(gesture, content)) }
+      : {}),
   }));
 }
 
-/** Lessons with descriptions, photos and the learner's name; reloads when samples change. */
+/** Уроки с описаниями, фото и именем ученика; перезагружаются при смене эталонов. */
 export function useLessons() {
   const [lessons, setLessons] = useState<readonly Lesson[]>([]);
   const [status, setStatus] = useState<LoadStatus>("loading");
@@ -84,7 +87,7 @@ export function useLessons() {
         if (active) setStatus("error");
       },
     );
-    // Which letters have samples decides which letters of a name can be practised.
+    // Какие буквы есть в эталонах, решает, какие буквы имени можно отработать.
     loadGestureLibrary().then(
       (library) =>
         active &&
@@ -112,7 +115,7 @@ export function useLessons() {
         spelled.letters = spelled.letters.map((letter) => withContent(letter, recorded.content));
       return personalizeLesson(lesson, spelled);
     });
-    // `settings` changes when the learner enters their name.
+    // `settings` меняется, когда ученик вводит имя.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessons, user, recorded, settings]);
   return {

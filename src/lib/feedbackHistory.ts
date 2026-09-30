@@ -1,10 +1,16 @@
 import type { RecognitionResult } from "../types/vision";
 
+// Только представление подсказок: распознавание и подсчёт очков работают с исходным результатом.
+// Состояния в модуле нет: каждая функция получает прошлое представление и возвращает новое.
+
+/** Прошлая подсказка в истории и признак того, что ошибку уже исправили. */
 export interface FeedbackEntry {
   key: string;
   result: RecognitionResult;
   corrected: boolean;
 }
+
+/** Что показывается сейчас, история прошлых подсказок и кандидат на смену подсказки. */
 export interface FeedbackPresentation {
   current: RecognitionResult;
   history: FeedbackEntry[];
@@ -13,16 +19,18 @@ export interface FeedbackPresentation {
   candidateSince?: number;
 }
 
-export function feedbackKey(result: RecognitionResult) {
+/** Ключ подсказки: одинаковые по смыслу результаты не сменяют друг друга. */
+function feedbackKey(result: RecognitionResult) {
   const state = result.errorCodes?.length ? "correction" : result.status;
   return [state, result.referenceIssue, result.errorCodes?.join(), result.message].join("|");
 }
 
+/** Начальное представление: текущий результат без истории. */
 export function initialFeedback(current: RecognitionResult): FeedbackPresentation {
   return { current, history: [], changedAt: -Infinity };
 }
 
-/** Presentation only: recognition and scoring continue to consume the original result. */
+/** Следующее представление: подсказка меняется не чаще, чем позволяют задержки, прошлые ошибки уходят в историю. */
 export function updateFeedback(previous: FeedbackPresentation, next: RecognitionResult, now: number): FeedbackPresentation {
   const key = feedbackKey(next);
   if (key === feedbackKey(previous.current))

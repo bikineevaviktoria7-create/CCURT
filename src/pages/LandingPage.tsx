@@ -1,6 +1,6 @@
-import { StudentVideos } from "../components/landing/StudentVideos";
 import { ArrowRight, ScanLine, MoveUpRight } from "lucide-react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import { StudentVideos } from "../components/landing/StudentVideos";
 import { Page } from "../components/layout/Page";
 import { Button } from "../components/common/Button";
 import { useApp } from "../context/appState";

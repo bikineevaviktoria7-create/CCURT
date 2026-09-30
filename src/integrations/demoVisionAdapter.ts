@@ -6,7 +6,7 @@ import type {
   VisionCallbacks,
 } from "../types/vision";
 
-/** Recognition result before the first frame. */
+/** Результат распознавания до первого кадра. */
 export function initialRecognition(targetLabel: string): RecognitionResult {
   return {
     status: "idle",
@@ -16,7 +16,7 @@ export function initialRecognition(targetLabel: string): RecognitionResult {
   };
 }
 
-// An illustrative open hand for testing highlights; this is NOT an RSL reference.
+// Условная открытая ладонь для проверки подсветки; это НЕ эталон РЖЯ.
 const demoLandmarks: readonly Point3[] = [
   [0.5, 0.84],
   [0.39, 0.72],
@@ -41,7 +41,7 @@ const demoLandmarks: readonly Point3[] = [
   [0.78, 0.29],
 ].map(([x = 0, y = 0]) => ({ x, y, z: 0 }));
 
-/** Scripted adapter without a camera model for the explicit demo mode. */
+/** Адаптер по сценарию без модели камеры для явного демо-режима. */
 export class DemoVisionAdapter implements VisionAdapter {
   readonly mode = "demo";
   private readonly targetLabel: string;
@@ -57,7 +57,7 @@ export class DemoVisionAdapter implements VisionAdapter {
   }
 
   async initialize() {
-    /* No model is loaded in the explicit demo mode. */
+    /* В явном демо-режиме модель не загружается. */
   }
 
   async start() {

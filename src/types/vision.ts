@@ -21,7 +21,7 @@ export type GestureErrorCode =
   | "LOW_LIGHT"
   | "WRONG_HAND"
   | "WRONG_GESTURE"
-  // Retained only to read historical results; no active movement analysis emits these.
+  // Оставлены только для чтения старых результатов; текущее распознавание их не выдаёт.
   | "START_POSITION" | "END_POSITION" | "WRONG_DIRECTION"
   | "AMPLITUDE_TOO_SMALL" | "AMPLITUDE_TOO_LARGE"
   | "TOO_FAST" | "TOO_SLOW" | "TRAJECTORY_MISMATCH"

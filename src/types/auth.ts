@@ -19,11 +19,11 @@ export interface UserSettings {
   calibrationCompleted: boolean;
 }
 
-/** Sign-in service used by the app (mock accounts during the hackathon). */
+/** Сервис входа, которым пользуется приложение (тестовые аккаунты на время хакатона). */
 export interface AuthService {
-  /** True when accounts live on a remote server (a plain value, not a method). */
+  /** True, если аккаунты хранятся на удалённом сервере (простое значение, не метод). */
   readonly isRemote: boolean;
-  /** Signed-in user or guest (arrow field: passed to `useState` without a call). */
+  /** Вошедший пользователь или гость (поле-стрелка: передаётся в `useState` без вызова). */
   getCurrentUser: () => User | null;
   initialize(): Promise<User | null>;
   onSignedOut(callback: () => void): () => void;

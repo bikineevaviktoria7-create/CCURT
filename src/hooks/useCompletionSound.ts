@@ -1,13 +1,13 @@
 import { useEffect, useRef } from "react";
 import { soundFeedback } from "../lib/soundFeedback";
 
-/** Plays the completion sound once, when the result first becomes available: celebration if passed, otherwise the neutral hint tone. */
+/** Один раз проигрывает звук завершения, когда результат впервые готов: праздничный при успехе, иначе нейтральный тон подсказки. */
 export function useCompletionSound(found: boolean, passed: boolean) {
   const completionSoundPlayed = useRef(false);
   useEffect(() => {
     if (found && !completionSoundPlayed.current) {
       completionSoundPlayed.current = true;
-      // A failed lesson (0 stars) gets the neutral hint tone instead of the celebration.
+      // Непройденный урок (0 звёзд) получает нейтральный тон подсказки вместо праздничного.
       if (passed) soundFeedback.lessonComplete();
       else soundFeedback.hint();
     }

@@ -1,22 +1,22 @@
 import { settingsService } from "../services/settingsService";
 import type { SettingsStore } from "../services/settingsService";
 
-// Sound and speech. Visual feedback stays primary (the audience is
-// deaf and hard-of-hearing); these are optional extras controlled in settings.
+// Звук и речь. Главной остаётся визуальная обратная связь (аудитория —
+// глухие и слабослышащие); это необязательные дополнения, включаемые в настройках.
 
-/** Settings the cues depend on. */
+/** Настройки, от которых зависят сигналы. */
 type SoundSettings = Pick<SettingsStore, "get">;
 
-/** Optional sound and speech cues for the lesson. */
+/** Необязательные звуковые и речевые сигналы урока. */
 export interface SoundFeedbackApi {
-  /** Creates or resumes the audio context; call only from trusted user input. */
+  /** Создаёт или возобновляет аудиоконтекст; вызывать только из действия пользователя. */
   unlock(): void;
   success(spoken: string): void;
   hint(): void;
   lessonComplete(): void;
 }
 
-/** Sound and speech cues; each respects the user settings. */
+/** Звуковые и речевые сигналы; каждый учитывает настройки пользователя. */
 export class SoundFeedback implements SoundFeedbackApi {
   private settings: SoundSettings;
   private audio: AudioContext | null = null;
@@ -29,14 +29,14 @@ export class SoundFeedback implements SoundFeedbackApi {
       speechSynthesis.addEventListener?.("voiceschanged", this.resetVoice);
   }
 
-  // Called only from trusted user input, so browser autoplay restrictions are respected.
+  // Вызывается только из действия пользователя, поэтому ограничения автовоспроизведения браузера соблюдены.
   unlock = () => {
     if (!this.settings.get().soundEnabled) return;
     try {
       this.audio ??= new AudioContext();
       if (this.audio.state === "suspended") void this.audio.resume().catch(() => undefined);
     } catch {
-      /* Audio is optional. */
+      /* Звук необязателен. */
     }
   };
 
@@ -76,14 +76,14 @@ export class SoundFeedback implements SoundFeedbackApi {
         start += duration + gap;
       }
     } catch {
-      /* Audio is optional. */
+      /* Звук необязателен. */
     }
   }
 
   private speak(text: string) {
     if (!this.settings.get().speechEnabled || !("speechSynthesis" in window)) return;
     this.russianVoice ??= speechSynthesis.getVoices().find((voice) => voice.lang.toLowerCase().startsWith("ru")) ?? null;
-    // No Russian voice installed: stay silent rather than read Russian with an English voice.
+    // Русского голоса нет: лучше промолчать, чем читать русский текст английским голосом.
     if (!this.russianVoice) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.voice = this.russianVoice;
@@ -93,11 +93,11 @@ export class SoundFeedback implements SoundFeedbackApi {
     speechSynthesis.speak(utterance);
   }
 
-  /** Arrow field: `voiceschanged` listener. */
+  /** Поле-стрелка: обработчик `voiceschanged`. */
   private resetVoice = () => {
     this.russianVoice = undefined;
   };
 }
 
-/** Optional sound and speech cues for the lesson; each respects the user settings. */
+/** Необязательные звуковые и речевые сигналы урока; каждый учитывает настройки пользователя. */
 export const soundFeedback: SoundFeedbackApi = new SoundFeedback(settingsService);

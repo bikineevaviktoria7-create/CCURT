@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { BookOpen, Camera, CameraOff } from "lucide-react";
 import { ROUTES } from "../../app/constants";
-import { Camera, CameraOff } from "lucide-react";
 import { uiText } from "../../lib/uiText";
 import { useCamera, CAMERA_MESSAGES } from "../../hooks/useCamera";
-import {
-  useRecognition,
-  type RecognitionConfig,
-} from "../../hooks/useRecognition";
+import { useRecognition, type RecognitionConfig } from "../../hooks/useRecognition";
 import { recognitionTolerance, useGestureLibrary } from "../../services/gestureLibrary";
 import { useSettings } from "../../services/settingsService";
 import { soundFeedback } from "../../lib/soundFeedback";
@@ -38,7 +35,8 @@ export function PracticeGesture({
   onCameraReady?: (ready: boolean) => void;
 }) {
   const camera = useCamera();
-  useEffect(() => { onCameraReady?.(camera.status === "ready"); }, [camera.status, onCameraReady]);
+  // Отсчёт ждёт только загрузку камеры: при отказе или ошибке урок идёт дальше, чтобы работали «Пропустить» и «Дальше».
+  useEffect(() => { onCameraReady?.(camera.status !== "loading"); }, [camera.status, onCameraReady]);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [modal, setModal] = useState<"skip" | null>(null);
   const settings = useSettings();
@@ -69,7 +67,7 @@ export function PracticeGesture({
     config,
   );
   const { start, running, modelError } = recognition;
-  // Real recognition starts by itself as soon as the camera is ready.
+  // Распознавание запускается само, как только камера готова.
   useEffect(() => {
     if (camera.status === "ready" && !running && !modelError) start();
   }, [camera.status, running, modelError, start]);
@@ -85,6 +83,8 @@ export function PracticeGesture({
       soundFeedback.hint();
     }
   }, [status, gesture.category, gesture.label]);
+  // Без эталонов жест урока изучается по образцу и не оценивается.
+  const studyOnly = !exercise && gestureLibrary.status === "ready" && !recognition.available;
   const failure =
     camera.status !== "loading" && camera.status !== "ready"
       ? CAMERA_MESSAGES[camera.status]
@@ -106,7 +106,7 @@ export function PracticeGesture({
         <aside className="target-card card">
           <span className="eyebrow">{exercise ? "Ваша задача" : "Ваш жест"}</span>
           <h2>{gesture.title}</h2>
-          <GestureReference gesture={gesture} />
+          <GestureReference gesture={gesture} showPositionOnly={!studyOnly} />
         </aside>
         <section className="camera-section" aria-label="Камера и схема руки">
           <div className={`camera-frame ${recognition.result.status}`}>
@@ -175,6 +175,19 @@ export function PracticeGesture({
         <aside className="feedback-column">
           {countdown > 0 ? (
             <GestureCountdown count={camera.status === "ready" ? countdown : 0} title={gesture.title} />
+          ) : studyOnly ? (
+            <section className="feedback-card" aria-label="Обратная связь">
+              <span className="eyebrow">Подсказка для вас</span>
+              <div className="feedback-message">
+                <span className="feedback-icon">
+                  <BookOpen size={27} aria-hidden="true" />
+                </span>
+                <div role="status" aria-live="polite" aria-atomic="true">
+                  <h2>Жест для изучения</h2>
+                  <p>Автоматическая оценка для этого жеста пока недоступна — повторите его по эталону</p>
+                </div>
+              </div>
+            </section>
           ) : (
             <>
               <GestureFeedback result={recognition.presentation.current} handVisibilityCheck={Boolean(exercise)} />
@@ -183,7 +196,7 @@ export function PracticeGesture({
               </div>}
             </>
           )}
-          {recognition.result.referenceIssue &&
+          {recognition.result.referenceIssue && !studyOnly &&
             <Link className="text-link" to={ROUTES.dashboard}>Вернуться к урокам</Link>}
           {import.meta.env.DEV && new URLSearchParams(window.location.search).has("visionDebug") && (
             <details className="recognition-diagnostics">
@@ -207,7 +220,17 @@ export function PracticeGesture({
         <div className="practice-instruction">
           <p>{exercise ? "Держите руку полностью в кадре" : "Не торопитесь и держите руку в кадре"}</p>
         </div>
-        {!exercise && <Button variant="ghost" disabled={transitioning} onClick={() => setModal("skip")}>Пропустить жест</Button>}
+        {studyOnly ? (
+          <Button
+            disabled={transitioning}
+            onClick={() => {
+              recognition.stop();
+              onAccept(recognition.studiedAttempt());
+            }}
+          >
+            Дальше
+          </Button>
+        ) : !exercise && <Button variant="ghost" disabled={transitioning} onClick={() => setModal("skip")}>Пропустить жест</Button>}
       </div>
       {modal === "skip" && (
         <Modal title="Пропустить этот жест?" onClose={() => setModal(null)}>

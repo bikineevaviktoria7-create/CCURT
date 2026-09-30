@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export type CameraStatus =
   "loading" | "ready" | "denied" | "unavailable" | "busy" | "error";
-/** Title and message shown for each camera failure. */
+/** Заголовок и сообщение для каждой ошибки камеры. */
 export const CAMERA_MESSAGES: Record<
   Exclude<CameraStatus, "ready" | "loading">,
   { title: string; message: string }
@@ -46,7 +46,7 @@ function waitForVideo(video: HTMLVideoElement, signal: AbortSignal): Promise<voi
   });
 }
 
-/** Starts the front camera in `videoRef`, reports its status and releases all tracks on stop. */
+/** Запускает фронтальную камеру в `videoRef`, сообщает её статус и при остановке освобождает все дорожки. */
 export function useCamera() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const attachedVideo = useRef<HTMLVideoElement | null>(null);
@@ -73,7 +73,7 @@ export function useCamera() {
     stop();
     const token = generation.current;
     setStatus("loading");
-    // Serialize permission requests: even rapid retries never own two streams.
+    // Запросы разрешения идут по очереди: даже при быстрых повторах не бывает двух потоков.
     const previous = pending.current;
     const request = (async () => {
       await previous;

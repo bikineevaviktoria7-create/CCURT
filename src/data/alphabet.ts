@@ -1,15 +1,14 @@
 import type { Gesture, ReferenceMedia } from "../types/lesson";
 
-// The full Russian alphabet for fingerspelling (дактиль). Ids 1–15 keep the order
-// of the original lessons; the rest follow the alphabet. Letters marked positionOnly
-// are shown with a movement in Russian Sign Language — check them against a
-// video dictionary (e.g. spreadthesign.com) before recording samples.
+// Полный русский алфавит для дактиля. Id 1–15 сохраняют порядок первых уроков,
+// остальные идут по алфавиту. Буквы с positionOnly в РЖЯ показываются с движением —
+// перед записью эталонов сверьте их с видеословарём (например, spreadthesign.com).
 const lessonLetters = ["А", "Б", "В", "Г", "Е", "И", "Л", "М", "Н", "О", "П", "С", "Т", "У", "Ш"];
 const otherLetters = ["Д", "Ё", "Ж", "З", "Й", "К", "Р", "Ф", "Х", "Ц", "Ч", "Щ", "Ъ", "Ы", "Ь", "Э", "Ю", "Я"];
-// Letters drawn with a movement arrow in the reference chart.
+// Буквы, которые в таблице-образце нарисованы со стрелкой движения.
 const withMovement = new Set(["Д", "Ё", "З", "Й", "К", "Ц", "Щ", "Ь", "Ъ"]);
 
-// How each letter is shown (sources: see README → «Описания жестов»).
+// Как показывается каждая буква (источники: README → «Описания жестов»).
 const DESCRIPTIONS: Readonly<Record<string, string>> = {
   "А": "Кулак, большой палец выпрямлен и прижат сбоку к указательному.",
   "Б": "Указательный прямой; средний рядом, его верхняя фаланга согнута к указательному; безымянный и мизинец в кулаке.",
@@ -69,9 +68,9 @@ export function findLetterByLabel(label: string) {
   return byLabel.get(label.toUpperCase());
 }
 
-// Fingerspelling illustrations (dactyl chart, one SVG per letter, the letter is
-// signed as seen by the person facing the signer). File name = gesture id.
-// Words have no illustrations yet; GestureReference shows a placeholder for them.
+// Иллюстрации дактиля (по одному SVG на букву, буква показана так, как её видит
+// собеседник). Имя файла = id жеста. Для слов иллюстраций пока нет — GestureReference
+// показывает заглушку.
 export const gestureReferences: Readonly<Partial<Record<string, ReferenceMedia>>> = Object.fromEntries(
   alphabet.map((letter) => [
     letter.id,

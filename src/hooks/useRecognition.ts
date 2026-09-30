@@ -1,11 +1,11 @@
-import { initialFeedback, updateFeedback } from "../lib/feedbackHistory";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { initialRecognition } from "../integrations/demoVisionAdapter";
 import { createVisionAdapter } from "../integrations/mediaPipeVisionAdapter";
 import { createSkeletonOverlay } from "../lib/drawHandSkeleton";
+import { initialFeedback, updateFeedback } from "../lib/feedbackHistory";
 import { useLatestRef } from "./useLatestRef";
-import type { RecognizerOptions } from "../vision/recognizer";
+import { hasModel, type RecognizerOptions } from "../vision/recognizer";
 import type { Point3 } from "../vision/types";
 import type { Gesture } from "../types/lesson";
 import type { GestureAttempt } from "../types/progress";
@@ -17,7 +17,7 @@ import type {
   VisionMode,
 } from "../types/vision";
 
-/** Recognition settings of one exercise; a new `targetKey` restarts recognition. */
+/** Настройки распознавания одного упражнения; новый `targetKey` перезапускает распознавание. */
 export interface RecognitionConfig {
   mode: VisionMode;
   enabled?: boolean;
@@ -25,7 +25,7 @@ export interface RecognitionConfig {
   options?: Omit<RecognizerOptions, "targetId" | "targetLabel">;
 }
 
-/** Runs recognition on the camera video: results go to React, hand points go to the canvas. */
+/** Запускает распознавание по видео с камеры: результаты идут в React, точки руки — в canvas. */
 export function useRecognition(
   gesture: Gesture,
   video: RefObject<HTMLVideoElement>,
@@ -46,8 +46,8 @@ export function useRecognition(
   const callback = useLatestRef(onSuccess);
   const pausedRef = useLatestRef(paused);
   const startedAt = useRef(Date.now());
-  // Switching between the demo and the camera always waits for an explicit start,
-  // so a missing sample never silently "passes" a gesture through the demo.
+  // Переключение между демо и камерой всегда ждёт явного запуска,
+  // чтобы при отсутствии эталона жест не «засчитывался» через демо.
   const previousMode = useRef(mode);
   useEffect(() => {
     if (previousMode.current !== mode) {
@@ -75,7 +75,7 @@ export function useRecognition(
     }
     const skeleton = createSkeletonOverlay(video.current, canvas.current);
     function showResult(next: RecognitionResult) {
-      // Reject late callbacks as well as paused frames: preparation cannot affect attempts.
+      // Отбрасываем запоздавшие колбэки и кадры на паузе: подготовка не влияет на попытки.
       if (!active || pausedRef.current) return;
       feedback = updateFeedback(feedback, next, performance.now());
       setPresentation(feedback);
@@ -128,7 +128,7 @@ export function useRecognition(
       adapter.stop();
       skeleton?.dispose();
     };
-    // The step key also resets consecutive occurrences of the same letter.
+    // Ключ шага сбрасывает распознавание и для одной и той же буквы подряд.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gesture.id, gesture.label, video, canvas, running, runId, mode, options, enabled, targetKey]);
   useEffect(() => {
@@ -140,9 +140,14 @@ export function useRecognition(
     setRunning(true);
     setRunId((id) => id + 1);
   }, []);
+  // Повторяет проверку распознавателя: без эталонов жест можно только изучить, но не оценить.
+  const available = (mode === "demo" && import.meta.env.DEV) ||
+    options?.exercise === "hand-visibility" ||
+    hasModel({ targetId: gesture.id, staticModels: options?.staticModels ?? new Map() });
   return {
     result,
     presentation,
+    available,
     running,
     modelError,
     modelLoading,
@@ -157,6 +162,16 @@ export function useRecognition(
       success: false,
       skipped: true,
       errorCodes: [...errors.current],
+      durationMs: Date.now() - startedAt.current,
+    }),
+    /** Попытка для жеста без эталонов: изучен по образцу, в оценку не входит. */
+    studiedAttempt: (): GestureAttempt => ({
+      gestureId: gesture.id,
+      mode: adapterRef.current?.mode ?? "demo",
+      success: false,
+      skipped: false,
+      assessed: false,
+      errorCodes: [],
       durationMs: Date.now() - startedAt.current,
     }),
   };

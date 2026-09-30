@@ -2292,3 +2292,11 @@
   .student-videos-heading { text-align: left; }
   .student-video-grid { grid-template-columns: minmax(0, 1fr); max-width: 330px; gap: 20px; }
 }
+
+/* Рисунки слов — длинная последовательность рук (около 6:1): показываются целиком по ширине,
+   на узких экранах — с прокруткой, чтобы руки не становились слишком мелкими. */
+.gesture-reference.is-word img { aspect-ratio: auto; height: auto; max-height: none; }
+@media (max-width: 640px) {
+  .gesture-reference.is-word { overflow-x: auto; }
+  .gesture-reference.is-word img { width: auto; max-width: none; height: 140px; }
+}

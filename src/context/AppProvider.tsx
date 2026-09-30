@@ -8,7 +8,7 @@ import { AppContext } from "./appState";
 import type { User } from "../types/auth";
 import type { LessonResult } from "../types/progress";
 
-/** Holds the signed-in user and their progress; restores the session on start. */
+/** Хранит вошедшего пользователя и его прогресс; при запуске восстанавливает сессию. */
 export function AppProvider({ children }: { children: ReactNode }) {
   const [user, updateUser] = useState(authService.getCurrentUser);
   const [authReady, setAuthReady] = useState(!authService.isRemote);

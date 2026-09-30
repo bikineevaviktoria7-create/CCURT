@@ -4,17 +4,17 @@ import type { LearningProgress, LessonResult } from "../types/progress";
 
 interface AppState {
   user: User | null;
-  /** False while the saved session is being restored from the server. */
+  /** False, пока сохранённая сессия восстанавливается с сервера. */
   authReady: boolean;
   progress: LearningProgress;
   setUser(user: User): void;
   logout(): void;
   complete(result: LessonResult): void;
 }
-/** App-wide user and progress; provided by `AppProvider`. */
+/** Пользователь и прогресс для всего приложения; предоставляется `AppProvider`. */
 export const AppContext = createContext<AppState | null>(null);
 
-/** Reads the app state; throws outside `AppProvider`. */
+/** Читает состояние приложения; вне `AppProvider` бросает ошибку. */
 export function useApp() {
   const context = useContext(AppContext);
   if (!context) throw new Error("AppProvider is required");

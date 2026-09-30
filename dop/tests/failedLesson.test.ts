@@ -85,3 +85,48 @@ test("a failed result never enters the sync queue", async () => {
   await sync.flush();
   assert.deepEqual(sent, []);
 });
+
+const studied: GestureAttempt = { ...correct, success: false, skipped: false, assessed: false };
+/** Result fields that do not depend on time or session id. */
+const outcome = ({ accuracy, score, stars }: { accuracy: number; score: number; stars: number }) => ({ accuracy, score, stars });
+
+test("a gesture without assessment does not change the result of assessed ones", () => {
+  const assessedOnly = calculateLessonResult("1", attempts(2, 0), 0, "assessed");
+  const withStudied = calculateLessonResult("1", [...attempts(2, 0), { ...studied }], 0, "with-studied");
+  assert.deepEqual(outcome(withStudied), outcome(assessedOnly));
+  assert.equal(withStudied.mode, assessedOnly.mode);
+});
+
+test("a lesson of only unassessed gestures is studied: 1 star, 100% accuracy, 0 points", () => {
+  const first = lessons[0]!;
+  const second = lessons[1]!;
+  const result = calculateLessonResult(first.id, [{ ...studied }, { ...studied }], 0, "studied-only");
+  assert.deepEqual(outcome(result), { accuracy: 100, score: 0, stars: 1 });
+  assert.equal(isPassedResult(result), true);
+  assert.equal(progressModule.isLessonResult(result), true);
+  const progress = progressService.completeLesson(accountId, result);
+  assert.equal(lessonStatus(first, lessons, progress), "completed");
+  assert.equal(lessonStatus(second, lessons, progress), "current");
+});
+
+test("an old result without the assessed field stays valid", () => {
+  const legacy = calculateLessonResult("1", attempts(2, 1), 0, "legacy");
+  assert.equal(legacy.attempts.some((attempt) => "assessed" in attempt), false);
+  assert.equal(progressModule.isLessonResult(legacy), true);
+});
+
+test("skipping an assessed gesture still gives 0 points for it", () => {
+  const result = calculateLessonResult("1", attempts(0, 2, skipped), 0, "skip-assessed");
+  assert.deepEqual(outcome(result), { accuracy: 0, score: 0, stars: 0 });
+  const mixed = calculateLessonResult("1", [...attempts(1, 1, skipped), { ...studied }], 0, "skip-mixed");
+  assert.deepEqual(outcome(mixed), outcome(calculateLessonResult("1", attempts(1, 1, skipped), 0, "skip-plain")));
+});
+
+test("assessed accepts only false, and only for a failed, not skipped attempt", () => {
+  const { isGestureAttempt } = progressModule;
+  assert.equal(isGestureAttempt(studied), true);
+  assert.equal(isGestureAttempt({ ...studied, assessed: true }), false);
+  assert.equal(isGestureAttempt({ ...studied, assessed: undefined }), false);
+  assert.equal(isGestureAttempt({ ...studied, success: true }), false);
+  assert.equal(isGestureAttempt({ ...studied, skipped: true }), false);
+});

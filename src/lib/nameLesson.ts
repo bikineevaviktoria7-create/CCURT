@@ -1,31 +1,31 @@
 import type { Gesture, Lesson } from "../types/lesson.ts";
 
-// «Своё имя»: the learner spells their own name in fingerspelling, letter by letter.
+// «Своё имя»: ученик показывает своё имя дактилем, буква за буквой.
 
-/** Allowed name: 2–12 Cyrillic letters or hyphens. */
+/** Допустимое имя: 2–12 кириллических букв или дефисов. */
 export const NAME_PATTERN = /^[А-ЯЁа-яё-]{2,12}$/;
 
-/** First word of the entered name, or an empty string. */
+/** Первое слово введённого имени или пустая строка. */
 export function firstWord(name: string) {
   return name.trim().split(/\s+/)[0] ?? "";
 }
 
-/** True when the first word of the name matches NAME_PATTERN. */
+/** True, если первое слово имени подходит под NAME_PATTERN. */
 export function isCyrillicName(name: string) {
   return NAME_PATTERN.test(firstWord(name));
 }
 
 export interface SpelledName {
   name: string;
-  /** Letters to practise, in order (repeats included). */
+  /** Буквы для тренировки по порядку (с повторами). */
   letters: Gesture[];
-  /** Characters that cannot be practised yet (not in the Russian alphabet or no samples). */
+  /** Символы, которые пока нельзя тренировать (нет в русском алфавите или нет эталонов). */
   skipped: string[];
 }
 
 /**
- * Split the name into letters to practise. `available` holds ids of gestures with recorded samples,
- * or null when the app runs without samples (demo mode) — then every alphabet letter is allowed.
+ * Разбивает имя на буквы для тренировки. `available` — id жестов с записанными эталонами
+ * или null, если приложение работает без эталонов (демо-режим), — тогда разрешена любая буква алфавита.
  */
 export function buildSpelledName(
   name: string,
@@ -44,7 +44,7 @@ export function buildSpelledName(
   return { name: word, letters, skipped: [...new Set(skipped)] };
 }
 
-/** Words of the lesson first, then the name; theory shows each letter once. */
+/** Сначала слова урока, затем имя; в теории каждая буква показывается один раз. */
 export function personalizeLesson(lesson: Lesson, spelled: SpelledName | null): Lesson {
   if (lesson.personalized !== "name" || !spelled) return { ...lesson, needsName: lesson.personalized === "name" };
   if (spelled.letters.length < 2) return { ...lesson, spelledName: spelled };

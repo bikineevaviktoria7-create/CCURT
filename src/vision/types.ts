@@ -1,5 +1,5 @@
-// Pure data types for the recognition pipeline. No DOM, no MediaPipe imports:
-// everything in src/vision/*.ts (except landmarkers.ts) is testable with node --test.
+// Чистые типы данных конвейера распознавания. Без DOM и без импортов MediaPipe:
+// всё в src/vision/*.ts (кроме landmarkers.ts) тестируется через node --test.
 
 export interface Point3 {
   x: number;
@@ -20,32 +20,30 @@ export type FeatureGroup =
 
 export type FingerName = "thumb" | "index" | "middle" | "ring" | "pinky";
 
-/** One recorded reference example of a gesture. */
+/** Один записанный эталон жеста. */
 export interface GestureSample {
   id: string;
   gestureId: string;
-  /** Static gestures: hand-shape feature vector. */
+  /** Вектор признаков формы руки. */
   features?: number[];
-  /** Dynamic gestures: one motion feature vector per frame (already resampled). */
+  /** Старые записи движения из базы; распознавание их не использует, такие эталоны отсеиваются. */
   sequence?: number[][];
-  /** Dynamic gestures: recording duration, used for speed hints. */
+  /** Длительность записи из базы; распознаванием не используется. */
   durationMs?: number;
-  /** Explicit coordinate convention used while recording; never infer it from the word. */
-  coordinateSpace?: "frame" | "body";
-  /** Raw landmarks so features can be recomputed if the algorithm changes. */
+  /** Сырые точки, чтобы пересчитать признаки при смене алгоритма. */
   landmarks?: unknown;
   handedness?: Hand;
   featureVersion: number;
   createdAt?: string;
 }
 
-/** Everything the matcher needs to know about one analysed frame of a hand. */
+/** Всё, что нужно сравнению об одной руке на обработанном кадре. */
 export interface HandObservation {
-  /** 21 image-space points, 0–1, not mirrored. */
+  /** 21 точка в координатах кадра, 0–1, без зеркалирования. */
   image: readonly Point3[];
-  /** 21 world-space points in metres (MediaPipe worldLandmarks). */
+  /** 21 точка в мировых координатах, в метрах (worldLandmarks MediaPipe). */
   world: readonly Point3[];
   hand: Hand;
-  /** MediaPipe handedness score, 0–1. */
+  /** Уверенность MediaPipe в определении руки, 0–1. */
   score: number;
 }

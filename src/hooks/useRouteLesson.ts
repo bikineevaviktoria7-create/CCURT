@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { useApp } from "../context/appState";
 import { useLessons } from "./useLessons";
 
-/** Lessons, progress and the lesson addressed by the `:lessonId` route parameter. */
+/** Уроки, прогресс и урок, заданный параметром маршрута `:lessonId`. */
 export function useRouteLesson() {
   const { lessonId } = useParams();
   const { lessons, status, retry } = useLessons();

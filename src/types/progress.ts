@@ -5,11 +5,16 @@ export type LessonPhase =
   "learn" | "ready" | "practice" | "prepare" | "transition" | "completed";
 
 export interface GestureAttempt {
-  /** Absent only in legacy results, whose source was not recorded. */
+  /** Отсутствует только в старых результатах, у которых источник не записывался. */
   mode?: VisionMode;
   gestureId: string;
   success: boolean;
   skipped: boolean;
+  /**
+   * `false` — жест без автоматической оценки (нет эталонов): его изучают,
+   * но не оценивают. Отсутствие поля — оцениваемый жест (все старые результаты).
+   */
+  assessed?: false;
   confidence?: number;
   errorCodes: GestureErrorCode[];
   durationMs: number;
@@ -30,7 +35,7 @@ export interface LessonResult {
   completedAt: string;
   score: number;
   accuracy: number;
-  /** 0 means the lesson was not passed: such a result is shown but never saved. */
+  /** 0 — урок не пройден: такой результат показывается, но не сохраняется. */
   stars: Stars;
   durationMs: number;
   attempts: GestureAttempt[];

@@ -1,6 +1,6 @@
 import type { FingerName } from "./types.ts";
 
-// All user-facing recognition texts live here: short, polite («вы»), one action.
+// Все тексты распознавания для пользователя лежат здесь: коротко, на «вы», одно действие.
 
 export const FINGER_TITLES: Record<FingerName, string> = {
   thumb: "большой палец",
@@ -28,7 +28,7 @@ export const PAIR_FINGERS: Record<FingerPair, [FingerName, FingerName]> = {
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-/** Hint and status texts shown to the learner, one action per message. */
+/** Тексты подсказок и статусов для ученика, одно действие в сообщении. */
 export const hints = {
   bendFinger: (finger: FingerName) =>
     `Согните ${FINGER_TITLES[finger]} — сейчас он выпрямлен.`,

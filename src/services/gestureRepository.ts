@@ -1,15 +1,15 @@
-import type { ReferenceMedia } from "../types/lesson";
 import { supabase } from "../lib/supabase";
 import { localDb } from "../lib/localDb";
 import { isStaticSample } from "../vision/staticMatcher";
 import type { GestureSample } from "../vision/types";
+import type { ReferenceMedia } from "../types/lesson";
 import type { GestureErrorCode } from "../types/vision";
 
-// One place that knows where gesture samples and content (description, photo,
-// hints) come from. Priority: Supabase → saved sample data (IndexedDB) → the
-// bundled backup public/data/samples.json. The app keeps working if any is missing.
+// Единственное место, которое знает, откуда берутся эталоны и контент жестов (описание,
+// фото, подсказки). Приоритет: Supabase → сохранённые эталоны (IndexedDB) → резервная
+// копия public/data/samples.json. Приложение работает, даже если какого-то источника нет.
 
-/** Description, photo and hints of one gesture. */
+/** Описание, фото и подсказки одного жеста. */
 export interface GestureContent {
   id: string;
   description?: string;
@@ -18,7 +18,7 @@ export interface GestureContent {
   hints?: Partial<Record<GestureErrorCode, string>>;
 }
 
-/** Format of public/data/samples.json. */
+/** Формат public/data/samples.json. */
 export interface GestureBundle {
   version: number;
   exportedAt: string | null;
@@ -27,7 +27,7 @@ export interface GestureBundle {
   samples: GestureSample[];
 }
 
-// Keep legacy keys so existing lesson samples remain available.
+// Старые ключи сохранены, чтобы уже записанные эталоны оставались доступны.
 const GESTURE_BUNDLE_VERSION = 1;
 const LOCAL_SAMPLES = "admin:samples";
 const LOCAL_CONTENT = "admin:content";
@@ -83,7 +83,7 @@ async function loadBundle(): Promise<GestureBundle> {
 
 function mergeContent(...sources: GestureContent[][]) {
   const result: Record<string, GestureContent> = {};
-  // Later sources have lower priority: fill only missing fields.
+  // У следующих источников приоритет ниже: они заполняют только пустые поля.
   for (const source of sources)
     for (const item of source) {
       const current = result[item.id] ?? { id: item.id };
@@ -98,23 +98,23 @@ function mergeContent(...sources: GestureContent[][]) {
   return result;
 }
 
-/** Everything loaded from all sample sources. */
+/** Всё, что загружено из всех источников эталонов. */
 export interface GestureData {
   samples: GestureSample[];
   content: Record<string, GestureContent>;
   tolerance?: number;
 }
 
-/** Cached gesture samples and content with change notifications. */
+/** Кешированные эталоны и контент жестов с уведомлениями об изменениях. */
 export interface GestureStore {
   load(): Promise<GestureData>;
-  /** Drops the cache and notifies listeners (arrow field: safe to pass as a callback). */
+  /** Сбрасывает кеш и оповещает подписчиков (стрелочное поле: можно передавать как колбэк). */
   invalidate: () => void;
-  /** Adds a change listener and returns the unsubscribe function (arrow field). */
+  /** Добавляет подписчика на изменения и возвращает функцию отписки (стрелочное поле). */
   onChange: (listener: () => void) => () => void;
 }
 
-/** Cached gesture samples and content from all sources, with change notifications. */
+/** Эталоны и контент жестов из всех источников с кешем и уведомлениями об изменениях. */
 export class GestureRepository implements GestureStore {
   private supabase: typeof supabase;
   private localDb: typeof localDb;
@@ -149,7 +149,7 @@ export class GestureRepository implements GestureStore {
     const client = this.supabase;
     if (!client) return [];
     const rows: SampleRow[] = [];
-    // Page through the table (PostgREST returns at most 1000 rows per request).
+    // Читаем таблицу страницами (PostgREST отдаёт не больше 1000 строк за запрос).
     for (let from = 0; ; from += 1000) {
       const { data, error } = await client
         .from("gesture_samples")
@@ -197,8 +197,8 @@ export class GestureRepository implements GestureStore {
       loadBundle(),
     ]);
     const byId = new Map<string, GestureSample>();
-    // Remote first, then local unsynced recordings, then the bundled backup —
-    // the backup is only used for gestures that have no compatible static samples anywhere else.
+    // Сначала сервер, затем локальные несинхронизированные записи, затем резервная копия —
+    // она используется только для жестов, у которых нигде нет подходящих статических эталонов.
     for (const sample of [...remoteSamples, ...local]) byId.set(sample.id, sample);
     const covered = new Set([...byId.values()].filter(isStaticSample).map((sample) => sample.gestureId));
     for (const sample of bundle.samples)
@@ -212,5 +212,5 @@ export class GestureRepository implements GestureStore {
   }
 }
 
-/** Shared gesture repository of the app. */
+/** Общий репозиторий жестов приложения. */
 export const gestureRepository: GestureStore = new GestureRepository(supabase, localDb);

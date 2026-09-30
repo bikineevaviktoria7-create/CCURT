@@ -3,7 +3,8 @@ import { Image } from "lucide-react";
 import { uiText } from "../../lib/uiText";
 import type { Gesture } from "../../types/lesson";
 
-export function GestureReference({ gesture }: { gesture: Gesture }) {
+/** Эталон жеста; `showPositionOnly=false` скрывает значок «только положение руки», когда автооценка недоступна. */
+export function GestureReference({ gesture, showPositionOnly = true }: { gesture: Gesture; showPositionOnly?: boolean }) {
   const media = gesture.referenceMedia;
   const [failedSource, setFailedSource] = useState<string>();
 
@@ -23,7 +24,7 @@ export function GestureReference({ gesture }: { gesture: Gesture }) {
           {gesture.category === "word" && <p className="word-reference-note">Для этого слова нужен проверенный образец</p>}
         </div>
       )}
-      {gesture.positionOnly && <span className="position-only-badge">Оценивается только положение руки</span>}
+      {gesture.positionOnly && showPositionOnly && <span className="position-only-badge">Оценивается только положение руки</span>}
     </figure>
   );
 }

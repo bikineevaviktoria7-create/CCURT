@@ -16,7 +16,7 @@ export const ROUTES = {
   lesson: (lessonId: string) => `/lessons/${encodeURIComponent(lessonId)}`,
   play: (lessonId: string) => `/lessons/${encodeURIComponent(lessonId)}/play`,
   results: (sessionId: string) => `/results/${encodeURIComponent(sessionId)}`,
-  /** Route patterns for the router; `lessonId` and `sessionId` are read with `useParams`. */
+  /** Шаблоны маршрутов для роутера; `lessonId` и `sessionId` читаются через `useParams`. */
   lessonPattern: "/lessons/:lessonId",
   playPattern: "/lessons/:lessonId/play",
   resultsPattern: "/results/:sessionId",

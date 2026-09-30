@@ -35,7 +35,7 @@ interface SkeletonOptions {
   correctLandmarks?: readonly number[];
   colors: { neutral: string; correct: string; incorrect: string };
 }
-/** Draw hand landmarks and bones on a canvas, matching the video's object-fit: contain. */
+/** Рисует точки и кости руки на canvas с учётом object-fit: contain у видео. */
 export function drawHandSkeleton({
   ctx,
   landmarks,
@@ -49,7 +49,7 @@ export function drawHandSkeleton({
   colors,
 }: SkeletonOptions) {
   ctx.clearRect(0, 0, width, height);
-  // Match object-fit: contain, including any letterboxing from negotiated camera dimensions.
+  // Повторяем object-fit: contain, включая поля от согласованного размера кадра камеры.
   const scale = Math.min(width / sourceWidth, height / sourceHeight);
   const w = sourceWidth * scale,
     h = sourceHeight * scale;
@@ -95,11 +95,11 @@ export function drawHandSkeleton({
 type SkeletonColors = SkeletonOptions["colors"];
 type SkeletonHighlights = Pick<SkeletonOptions, "incorrectLandmarks" | "correctLandmarks">;
 
-/** Hand skeleton drawn over the camera video; redraws on canvas resize. */
+/** Скелет руки поверх видео камеры; перерисовывается при изменении размера canvas. */
 export interface SkeletonOverlayApi {
-  /** Replaces the landmarks and highlights and redraws the canvas. */
+  /** Заменяет точки и подсветку и перерисовывает canvas. */
   draw(nextLandmarks: readonly Point3[], nextHighlights?: SkeletonHighlights): void;
-  /** Stops watching the canvas size. */
+  /** Перестаёт следить за размером canvas. */
   dispose(): void;
 }
 
@@ -136,7 +136,7 @@ export class SkeletonOverlay implements SkeletonOverlayApi {
 
   dispose() { this.observer?.disconnect(); }
 
-  /** Arrow field: passed to `ResizeObserver`. */
+  /** Поле-стрелка: передаётся в `ResizeObserver`. */
   private redraw = () => {
     const { video, canvas, ctx } = this;
     const dpr = window.devicePixelRatio || 1;
@@ -153,7 +153,7 @@ export class SkeletonOverlay implements SkeletonOverlayApi {
   };
 }
 
-/** Creates the overlay, or returns `undefined` when the video, canvas or 2D context is missing. */
+/** Создаёт оверлей или возвращает `undefined`, если нет видео, canvas или 2D-контекста. */
 export function createSkeletonOverlay(
   video: HTMLVideoElement | null,
   canvas: HTMLCanvasElement | null,

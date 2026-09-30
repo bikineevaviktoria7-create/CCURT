@@ -18,7 +18,7 @@ import type { FeatureGroup, FingerName, Point3 } from "./types.ts";
 
 export interface Issue {
   group: FeatureGroup;
-  /** Deviation divided by the group's tolerance; > 1 means a mistake. */
+  /** Отклонение, делённое на допуск группы; > 1 означает ошибку. */
   ratio: number;
   code: GestureErrorCode;
   message: string;
@@ -129,7 +129,7 @@ function directionTitle(vector: Point3) {
   return "в сторону";
 }
 
-/** For a (mirrored-to-right) hand, normal.z < 0 means the palm faces the camera. */
+/** Для руки (отражённой в правую) normal.z < 0 означает, что ладонь смотрит в камеру. */
 function facingTitle(normal: Point3) {
   if (normal.z < -0.55) return { target: "к камере", current: "повёрнута к камере" };
   if (normal.z > 0.55)
@@ -164,8 +164,8 @@ function orientationIssue(
 }
 
 /**
- * Compares a hand-shape with the closest sample of the target gesture and returns
- * up to two concrete corrections, the most certain first.
+ * Сравнивает форму руки с ближайшим эталоном целевого жеста и возвращает
+ * до двух конкретных исправлений, самое уверенное первым.
  */
 export function analyzeGestureErrors(
   input: readonly number[],
@@ -190,8 +190,8 @@ export function analyzeGestureErrors(
     else
       issues.push({ group, ratio, landmarks: [...PALM_LANDMARKS], ...orientationIssue(input, sample) });
   }
-  // A folded finger also changes the spread/contact features of its neighbours:
-  // report the finger itself, not a confusing "spread" hint.
+  // Согнутый палец меняет и признаки разведения/касания у соседей:
+  // сообщаем о самом пальце, а не путающую подсказку о разведении.
   const fingersWithIssues = new Set(
     issues.flatMap((issue) => (isFinger(issue.group) ? issue.landmarks : [])),
   );
@@ -200,8 +200,8 @@ export function analyzeGestureErrors(
       issue.group !== "spread" ||
       !issue.landmarks.some((index) => fingersWithIssues.has(index)),
   );
-  // Orientation errors change every other feature, so fix them first; then the
-  // shape of individual fingers; spread is the finest detail.
+  // Ошибки ориентации меняют все остальные признаки, поэтому исправляем их первыми; затем
+  // форму отдельных пальцев; разведение — самая тонкая деталь.
   function priority(issue: Issue) {
     if (issue.group === "orientation") return issue.ratio * (issue.ratio > 1.5 ? 3 : 1);
     if (issue.group === "spread") return issue.ratio * 0.8;

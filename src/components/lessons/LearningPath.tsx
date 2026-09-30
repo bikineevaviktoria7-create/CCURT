@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Check, LockKeyhole, Play, RotateCcw, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { uiText } from "../../lib/uiText";
@@ -135,7 +136,7 @@ export function LearningPath({
                     )}
                     <div
                       className="node-offset"
-                      style={{ "--node-x": `${x}px` } as React.CSSProperties}
+                      style={{ "--node-x": `${x}px` } as CSSProperties}
                     >
                       {status === "locked" ? (
                         <button

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Trophy } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { isRecord } from "../../lib/storage";
 
 interface LeaderboardRow {
   rank: number;
@@ -10,14 +11,14 @@ interface LeaderboardRow {
   is_me: boolean;
 }
 
-/** Top learners by the sum of their best lesson scores (only first names are shown). */
+/** Лучшие ученики по сумме лучших очков за уроки (показываются только имена). */
 export function Leaderboard({ refreshKey }: { refreshKey: number }) {
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null);
   useEffect(() => {
     if (!supabase) return;
     let active = true;
     supabase.rpc("get_leaderboard", { p_limit: 10 }).then(({ data, error }) => {
-      if (active) setRows(error ? [] : ((data ?? []) as LeaderboardRow[]));
+      if (active) setRows(error || !Array.isArray(data) ? [] : (data.filter(isRecord) as unknown as LeaderboardRow[]));
     });
     return () => {
       active = false;

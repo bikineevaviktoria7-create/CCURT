@@ -1,13 +1,13 @@
 import { FEATURE_COUNT, FEATURE_VERSION, FEATURE_GROUPS, FEATURE_LAYOUT, groupIndexes } from "./features.ts";
 import type { FeatureGroup, GestureSample } from "./types.ts";
 
-/** Defaults tuned for FEATURE_VERSION 1; adjustable with the tolerance slider. */
-// Distances are a weighted RMS over the feature vector (see weightedDistance).
+/** Значения подобраны для FEATURE_VERSION 1; строгость меняется ползунком допуска. */
+// Расстояния — взвешенное среднеквадратичное по вектору признаков (см. weightedDistance).
 export const MIN_ACCEPT_DISTANCE = 0.07;
 export const MAX_ACCEPT_DISTANCE = 0.22;
 export const DEFAULT_ACCEPT_DISTANCE = 0.12;
 
-/** Minimum per-group deviation (weighted RMS) that counts as a mistake. */
+/** Минимальное отклонение в группе признаков (взвешенное СКО), которое считается ошибкой. */
 const MIN_GROUP_THRESHOLD: Record<FeatureGroup, number> = {
   thumb: 0.11,
   index: 0.11,
@@ -30,7 +30,7 @@ export interface GestureMatch {
   distance: number;
 }
 
-/** Weighted RMS difference between two full feature vectors. */
+/** Взвешенная среднеквадратичная разница двух полных векторов признаков. */
 export function weightedDistance(a: readonly number[], b: readonly number[]) {
   let sum = 0;
   for (let index = 0; index < FEATURE_LAYOUT.length; index++) {
@@ -40,7 +40,7 @@ export function weightedDistance(a: readonly number[], b: readonly number[]) {
   return Math.sqrt(sum / FEATURE_LAYOUT.length);
 }
 
-/** Weighted RMS difference inside one feature group. */
+/** Взвешенная среднеквадратичная разница внутри одной группы признаков. */
 export function groupDeviation(
   a: readonly number[],
   b: readonly number[],
@@ -74,8 +74,8 @@ function centroid(vectors: readonly number[][]) {
 }
 
 /**
- * Learns, from the recorded samples of one gesture, how far a new attempt may be
- * from them and still count — so the thresholds follow the team's own recordings.
+ * По записанным эталонам одного жеста определяет, насколько новая попытка может
+ * от них отличаться и всё ещё засчитываться, — пороги следуют за записями команды.
  */
 export function buildStaticModel(
   gestureId: string,
@@ -109,13 +109,13 @@ export function buildStaticModel(
   return { gestureId, samples, acceptDistance, groupThreshold };
 }
 
-/** Reject old/incomplete vectors before they can distort distances and thresholds. */
+/** Отсеивает устаревшие и неполные векторы, пока они не исказили расстояния и пороги. */
 export function isStaticSample(sample: GestureSample): boolean {
   return sample.featureVersion === FEATURE_VERSION && Array.isArray(sample.features) &&
     sample.features.length === FEATURE_COUNT && sample.features.every(Number.isFinite);
 }
 
-/** Groups samples by gesture and builds one static model per gesture. */
+/** Группирует эталоны по жестам и строит по одной статической модели на жест. */
 export function buildStaticModels(samples: readonly GestureSample[]) {
   const byGesture = new Map<string, number[][]>();
   for (const sample of samples) {
@@ -130,7 +130,7 @@ export function buildStaticModels(samples: readonly GestureSample[]) {
   return models;
 }
 
-/** Distance to a gesture = mean of the two closest samples (robust to one bad sample). */
+/** Расстояние до жеста — среднее двух ближайших эталонов (устойчиво к одному плохому эталону). */
 export function distanceToStaticModel(
   features: readonly number[],
   model: StaticGestureModel,
@@ -143,7 +143,7 @@ export function distanceToStaticModel(
   return (first + second) / 2;
 }
 
-/** The recorded sample closest to the input. */
+/** Записанный эталон, ближайший к входному вектору. */
 export function nearestSample(
   features: readonly number[],
   model: StaticGestureModel,
@@ -160,7 +160,7 @@ export function nearestSample(
   return best;
 }
 
-/** All known gestures, closest first. */
+/** Все известные жесты, от ближайшего к дальнему. */
 export function rankGestures(
   features: readonly number[],
   models: ReadonlyMap<string, StaticGestureModel>,
@@ -173,7 +173,7 @@ export function rankGestures(
     .sort((a, b) => a.distance - b.distance);
 }
 
-/** 0–1 similarity to the target: 1 at the samples, 0.5 at the accept border. */
+/** Сходство с целью 0–1: 1 на эталонах, 0.5 на границе принятия. */
 export function similarity(distance: number, acceptDistance: number) {
   return clamp(1 - (distance / acceptDistance) * 0.5, 0, 1);
 }
@@ -182,14 +182,14 @@ export interface StaticDecision {
   nearest: GestureMatch;
   distance: number;
   accept: number;
-  /** Closest other gesture, when it is itself within its accept distance. */
+  /** Ближайший другой жест, если он сам в пределах своего порога принятия. */
   rival?: GestureMatch;
   matched: boolean;
 }
 
 /**
- * The target is accepted only when it is close enough AND no other known gesture
- * is clearly closer — so a similar letter is never counted as the target.
+ * Цель принимается, только если она достаточно близка И никакой другой известный жест
+ * не ближе явно, — так похожая буква никогда не засчитывается вместо цели.
  */
 export function compareStaticGesture(
   features: readonly number[],
@@ -209,4 +209,21 @@ export function compareStaticGesture(
       : undefined;
   const matched = distance <= accept && !(rival && rival.distance < distance * 0.75);
   return { distance, accept, rival, matched, nearest: other && other.distance < distance ? other : { gestureId: targetId, distance } };
+}
+
+/**
+ * Добавляет модели для букв, у которых та же форма кисти, что у другой буквы, плюс движение
+ * (Ё — Е, Й — И, Щ — Ш). Движение не оценивается, положение руки сравнивается по эталонам базовой буквы.
+ * `aliases` — пары [id буквы с движением, id базовой буквы]; собственные эталоны буквы важнее.
+ */
+export function withShapeAliases(
+  models: ReadonlyMap<string, StaticGestureModel>,
+  aliases: readonly (readonly [string, string])[],
+) {
+  const result = new Map(models);
+  for (const [aliasId, baseId] of aliases) {
+    const base = models.get(baseId);
+    if (base && !models.has(aliasId)) result.set(aliasId, { ...base, gestureId: aliasId });
+  }
+  return result;
 }

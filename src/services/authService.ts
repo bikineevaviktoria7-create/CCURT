@@ -3,10 +3,10 @@ import { MOCK_PASSWORD, MOCK_USERS } from "../app/constants";
 import { getCurrentUser } from "./accessService";
 import type { AuthService, LoginCredentials, User } from "../types/auth";
 
-/** Key-value storage the signed-in user is kept in. */
+/** Хранилище «ключ — значение», в котором лежит вошедший пользователь. */
 type AuthStorage = Pick<typeof storage, "read" | "write" | "remove">;
 
-/** Hackathon accounts only; lesson progress remains keyed by each stable user ID. */
+/** Только аккаунты хакатона; прогресс уроков по-прежнему привязан к постоянному ID пользователя. */
 export class MockAuthService implements AuthService {
   readonly isRemote: boolean;
   private storage: AuthStorage;
@@ -49,5 +49,5 @@ export class MockAuthService implements AuthService {
   }
 }
 
-/** Shared sign-in service of the app. */
+/** Общий сервис входа приложения. */
 export const authService: AuthService = new MockAuthService(storage, getCurrentUser);

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
+import { findLetterByLabel } from "../data/alphabet";
 import { allGestures } from "../data/lessons";
-import { buildStaticModels, type StaticGestureModel } from "../vision/staticMatcher";
+import { buildStaticModels, withShapeAliases, type StaticGestureModel } from "../vision/staticMatcher";
 import { gestureRepository, type GestureContent } from "./gestureRepository";
 import { settingsService } from "./settingsService";
 import type { LoadStatus } from "../types/loading";
 
-/** Gesture models built from the samples, plus labels and content for the UI. */
+/** Модели жестов, построенные по эталонам, а также подписи и контент для UI. */
 export interface GestureLibrary {
   staticModels: ReadonlyMap<string, StaticGestureModel>;
   labels: Readonly<Record<string, string>>;
@@ -15,15 +16,25 @@ export interface GestureLibrary {
   bundleTolerance?: number;
 }
 
+/** Буквы с движением, форма кисти которых совпадает с другой буквой: [буква, базовая буква]. */
+const SHAPE_ALIASES = [["Ё", "Е"], ["Й", "И"], ["Щ", "Ш"]] as const;
+
+/** Пары id для `withShapeAliases`. */
+export const shapeAliasIds = SHAPE_ALIASES.flatMap(([alias, base]) => {
+  const aliasLetter = findLetterByLabel(alias);
+  const baseLetter = findLetterByLabel(base);
+  return aliasLetter && baseLetter ? [[aliasLetter.id, baseLetter.id] as const] : [];
+});
+
 let cache: Promise<GestureLibrary> | null = null;
 gestureRepository.onChange(() => {
   cache = null;
 });
 
-/** Loads samples once and builds the models; the cache resets when the samples change. */
+/** Загружает эталоны один раз и строит модели; кеш сбрасывается при смене эталонов. */
 export function loadGestureLibrary() {
   cache ??= gestureRepository.load().then(({ samples, content, tolerance }) => {
-    const staticModels = buildStaticModels(samples);
+    const staticModels = withShapeAliases(buildStaticModels(samples), shapeAliasIds);
     const sampleCounts: Record<string, number> = {};
     for (const [id, model] of staticModels) sampleCounts[id] = model.samples.length;
     return {
@@ -38,7 +49,7 @@ export function loadGestureLibrary() {
   return cache;
 }
 
-/** Strictness: saved override on this device → env → exported bundle → 1. */
+/** Строгость: сохранённая на устройстве настройка → env → выгруженный набор → 1. */
 export function recognitionTolerance(library?: GestureLibrary) {
   const env = Number(import.meta.env.VITE_RECOGNITION_TOLERANCE);
   return (
@@ -49,7 +60,7 @@ export function recognitionTolerance(library?: GestureLibrary) {
   );
 }
 
-/** React state of the gesture library with a retry action; loads only when enabled. */
+/** Состояние библиотеки жестов для React с повторной загрузкой; грузит, только если включено. */
 export function useGestureLibrary(enabled = true) {
   const [state, setState] = useState<{
     status: LoadStatus;

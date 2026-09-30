@@ -3,7 +3,7 @@ import { useApp } from "../context/appState";
 import { authService } from "../services/authService";
 import { ROUTES } from "../app/constants";
 
-/** Returns an action that signs in as a guest and opens the preview exercise. */
+/** Возвращает действие, которое входит гостем и открывает пробное упражнение. */
 export function useStartPreview() {
   const { setUser } = useApp();
   const navigate = useNavigate();

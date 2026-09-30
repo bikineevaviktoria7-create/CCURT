@@ -1,15 +1,15 @@
 const STORAGE_PREFIX = "rsl-trainer:v1:";
 
-/** JSON key-value store. */
+/** JSON-хранилище «ключ — значение». */
 export interface KeyValueStorage {
   read(key: string): unknown;
   write(key: string, value: unknown): void;
   remove(key: string): void;
-  /** False after localStorage failed; values then live only in memory (arrow field). */
+  /** False после сбоя localStorage; значения тогда хранятся только в памяти (поле-стрелка). */
   isPersistent: () => boolean;
 }
 
-/** JSON key-value store over localStorage with an in-memory fallback. */
+/** JSON-хранилище «ключ — значение» поверх localStorage с запасным хранением в памяти. */
 export class BrowserStorage implements KeyValueStorage {
   private prefix: string;
   private memory = new Map<string, unknown>();
@@ -43,7 +43,7 @@ export class BrowserStorage implements KeyValueStorage {
     try {
       localStorage.removeItem(this.prefix + key);
     } catch {
-      // Do not resurrect the stale disk value after a failed removal.
+      // После неудачного удаления не возвращаем устаревшее значение с диска.
       this.memory.set(key, undefined);
       this.available = false;
     }
@@ -52,10 +52,10 @@ export class BrowserStorage implements KeyValueStorage {
   isPersistent = () => this.available;
 }
 
-/** Shared app storage under the `rsl-trainer:v1:` prefix. */
+/** Общее хранилище приложения с префиксом `rsl-trainer:v1:`. */
 export const storage: KeyValueStorage = new BrowserStorage(STORAGE_PREFIX);
 
-/** True for a plain object (not null, not an array). */
+/** True для простого объекта (не null и не массив). */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

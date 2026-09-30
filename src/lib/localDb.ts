@@ -1,5 +1,5 @@
-// Tiny IndexedDB key-value store for data that is too big for localStorage
-// (saved reference samples and gesture photos).
+// Небольшое хранилище «ключ — значение» в IndexedDB для данных, слишком больших для localStorage
+// (сохранённые эталоны и фото жестов).
 const DB_NAME = "signstep";
 const STORE = "kv";
 const memory = new Map<string, unknown>();
@@ -17,7 +17,7 @@ function open(): Promise<IDBDatabase | null> {
   });
 }
 
-/** Async key-value store in IndexedDB with an in-memory fallback. */
+/** Асинхронное хранилище «ключ — значение» в IndexedDB с запасным хранением в памяти. */
 export const localDb = {
   async get<T>(key: string): Promise<T | undefined> {
     const db = await open();
