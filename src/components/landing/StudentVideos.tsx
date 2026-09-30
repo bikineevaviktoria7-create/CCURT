@@ -1,7 +1,9 @@
 import { useRef } from "react";
 import { Film } from "lucide-react";
-import surveyVideo from "../../../IMG_7516.MOV?url";
-import benefitsVideo from "../../../IMG_7521.MP4?url";
+import surveyVideo from "../../assets/videos/student-survey.mp4?url";
+import surveyPoster from "../../assets/videos/student-survey.jpg";
+import benefitsVideo from "../../assets/videos/why-useful.mp4?url";
+import benefitsPoster from "../../assets/videos/why-useful.jpg";
 
 interface StudentVideo {
   id: string;
@@ -10,10 +12,10 @@ interface StudentVideo {
   poster?: string;
 }
 
-// Vite включает исходные ролики в production-сборку; порядок задаётся здесь.
+// Vite включает оптимизированные ролики в production-сборку; порядок задаётся здесь.
 const STUDENT_VIDEOS: readonly StudentVideo[] = [
-  { id: "01", title: "Опрос студентов", src: surveyVideo, poster: undefined },
-  { id: "02", title: "Почему это полезно?", src: benefitsVideo, poster: undefined },
+  { id: "01", title: "Опрос студентов", src: surveyVideo, poster: surveyPoster },
+  { id: "02", title: "Почему это полезно?", src: benefitsVideo, poster: benefitsPoster },
 ];
 
 function SurveyVideo({ src, poster, title }: { src: string; poster?: string; title: string }) {
