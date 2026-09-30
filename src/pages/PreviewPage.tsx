@@ -1,4 +1,3 @@
-import { feedback } from "../lib/feedback";
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Check } from "lucide-react";
@@ -6,7 +5,8 @@ import { Page } from "../components/layout/Page";
 import { Button } from "../components/common/Button";
 import { GestureReference } from "../components/lessons/GestureReference";
 import { PracticeGesture } from "../components/camera/PracticeGesture";
-import { previewExercise, previewService } from "../services/previewService";
+import { useCompletionSound } from "../hooks/useCompletionSound";
+import { previewGesture, previewService } from "../services/previewService";
 import { ROUTES } from "../app/constants";
 import type { GestureAttempt } from "../types/progress";
 
@@ -28,10 +28,10 @@ export function PreviewPage() {
     {phase === "learn" ? <section className="learn-screen">
       <div className="learn-intro"><h1>Попробуйте камеру и подсказки</h1><p>Покажите руку и удерживайте её в кадре</p></div>
       <div className="learn-card card">
-        <GestureReference gesture={previewExercise} />
-        <div className="learn-description"><h2>{previewExercise.title}</h2><p>Поднимите одну руку так, чтобы запястье и все пальцы были видны. Удерживайте её в центре кадра до заполнения кольца</p><Button onClick={() => setPhase("practice")}>Начать практику</Button></div>
+        <GestureReference gesture={previewGesture} />
+        <div className="learn-description"><h2>{previewGesture.title}</h2><p>Поднимите одну руку так, чтобы запястье и все пальцы были видны. Удерживайте её в центре кадра до заполнения кольца</p><Button onClick={() => setPhase("practice")}>Начать практику</Button></div>
       </div>
-    </section> : <PracticeGesture gesture={previewExercise} exercise="hand-visibility" paused={false}
+    </section> : <PracticeGesture gesture={previewGesture} exercise="hand-visibility" paused={false}
       transitioning={phase === "success"} onAccept={(attempt) => {
         if (accepted.current) return;
         accepted.current = attempt;
@@ -43,13 +43,7 @@ export function PreviewPage() {
 
 export function PreviewResultPage() {
   const result = previewService.getResult();
-  const completionSoundPlayed = useRef(false);
-  useEffect(() => {
-    if (result && !completionSoundPlayed.current) {
-      completionSoundPlayed.current = true;
-      feedback.lessonComplete();
-    }
-  }, [result]);
+  useCompletionSound(Boolean(result), true);
   if (!result) return <Navigate to={ROUTES.preview} replace />;
   return <Page>
     <section className="practice-ready preview-result">

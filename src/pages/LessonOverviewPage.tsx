@@ -1,19 +1,20 @@
-import { uiText } from "../lib/uiText";
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { ArrowLeft, ArrowRight, Clock3 } from "lucide-react";
+import { uiText } from "../lib/uiText";
 import { Button } from "../components/common/Button";
 import { settingsService } from "../services/settingsService";
 import { NAME_PATTERN } from "../lib/nameLesson";
-import type { Lesson } from "../types/lesson";
-import { ArrowLeft, ArrowRight, Clock3 } from "lucide-react";
 import { Page } from "../components/layout/Page";
 import { ContentState } from "../components/common/ContentState";
 import { GestureReference } from "../components/lessons/GestureReference";
-import { useLessons } from "../hooks/useLessons";
+import { SectionTitle } from "../components/lessons/SectionTitle";
+import { useRouteLesson } from "../hooks/useRouteLesson";
 import { useApp } from "../context/appState";
 import { lessonStatus } from "../services/progressService";
 import { ROUTES } from "../app/constants";
+import type { Lesson } from "../types/lesson";
 
 function NameStep({ lesson }: { lesson: Lesson }) {
   const { user } = useApp();
@@ -82,10 +83,7 @@ function NameStep({ lesson }: { lesson: Lesson }) {
 }
 
 export function LessonOverviewPage() {
-  const { lessonId } = useParams();
-  const { lessons, status, retry } = useLessons();
-  const { progress } = useApp();
-  const lesson = lessons.find((item) => item.id === lessonId);
+  const { lesson, lessons, status, retry, progress } = useRouteLesson();
   return (
     <Page>
       <Link to={ROUTES.dashboard} className="back-link">
@@ -102,7 +100,7 @@ export function LessonOverviewPage() {
         <section className="lesson-overview">
           <p className="eyebrow">
             Раздел:{" "}
-            {lesson.sectionId === "alphabet" ? "Алфавит" : "Основные слова"}
+            <SectionTitle sectionId={lesson.sectionId} />
           </p>
           <p className="lesson-number">
             Урок {lesson.number} · {lesson.title}

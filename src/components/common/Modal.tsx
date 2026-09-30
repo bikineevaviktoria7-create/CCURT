@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useLatestRef } from "../../hooks/useLatestRef";
 
 export function Modal({
   title,
@@ -14,8 +15,7 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
-  const close = useRef(onClose);
-  close.current = onClose;
+  const close = useLatestRef(onClose);
   useEffect(() => {
     const dialog = ref.current;
     const previous = document.activeElement;

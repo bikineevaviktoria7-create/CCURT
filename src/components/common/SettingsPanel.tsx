@@ -1,5 +1,5 @@
-import { settingsService, useSettings } from "../../services/settingsService";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
+import { settingsService, useSettings } from "../../services/settingsService";
 
 /** Feedback preferences. Visual feedback is always on; the rest are optional. */
 export function SettingsPanel() {

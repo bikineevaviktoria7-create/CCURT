@@ -1,11 +1,12 @@
-import { accountId, setMockAccount } from "./helpers/mockAccount.ts";
-beforeEach(setMockAccount);
 import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
+import { accountId, setMockAccount } from "./helpers/mockAccount.ts";
 import { storage } from "../../src/lib/storage.ts";
 import { calculateLessonResult, emptyProgress, isLessonResult, lessonStatus, progressService } from "../../src/services/progressService.ts";
 import { lessons } from "../../src/data/lessons.ts";
 import type { GestureAttempt } from "../../src/types/progress.ts";
+
+beforeEach(setMockAccount);
 
 const attempt: GestureAttempt = { gestureId: "letter-1", success: true, skipped: false, errorCodes: [], durationMs: 1200 };
 const result = (id: string) => calculateLessonResult("1", [{ ...attempt }], Date.now() - 1200, id);
@@ -18,7 +19,7 @@ test("demo and mixed sessions remain viewable without unlocking or contributing 
   assert.deepEqual(progressService.completeLesson(accountId, demo), emptyProgress());
   assert.deepEqual(progressService.getResult(accountId, demo.sessionId), demo);
   assert.deepEqual(progressService.mergeResults(accountId, [demo]), emptyProgress());
-  assert.equal(lessonStatus(lessons[1]!, lessons, progressService.getProgress(accountId)), "available");
+  assert.equal(lessonStatus(lessons[1]!, lessons, progressService.getProgress(accountId)), "locked");
   const real = result("real-session");
   const saved = progressService.completeLesson(accountId, real);
   assert.equal(saved.sessions.length, 1);

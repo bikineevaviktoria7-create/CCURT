@@ -1,22 +1,27 @@
-import { hints } from "../../vision/hints";
-import { uiText } from "../../lib/uiText";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Hand, ScanLine, TriangleAlert, X } from "lucide-react";
+import { hints } from "../../vision/hints";
+import { uiText } from "../../lib/uiText";
 import type { RecognitionResult } from "../../types/vision";
 
 export function GestureFeedback({
   result,
-  handVisibility = false,
+  handVisibilityCheck = false,
+  compact = false,
+  corrected = false,
 }: {
   result: RecognitionResult;
-  handVisibility?: boolean;
+  handVisibilityCheck?: boolean;
+  compact?: boolean;
+  corrected?: boolean;
 }) {
   const { status, holdProgress } = result;
   const message = result.message === hints.noSamples()
     ? "Можно пропустить этот жест и продолжить урок"
     : result.message;
-  const title =
-    status === "success"
+  const title = result.referenceIssue
+    ? "Оценка недоступна"
+    : status === "success"
       ? "Отлично!"
       : status === "almost"
         ? "Немного не так"
@@ -26,9 +31,9 @@ export function GestureFeedback({
             ? "Проверьте положение руки"
             : status === "searching"
               ? "Вижу руку"
-              : handVisibility ? "Покажите руку в камеру" : "Покажите жест в камеру";
+              : handVisibilityCheck ? "Покажите руку в камеру" : "Покажите жест в камеру";
   const Icon =
-    status === "success"
+    result.referenceIssue ? TriangleAlert : status === "success"
       ? Check
       : status === "almost" || status === "environment-error"
         ? TriangleAlert
@@ -37,13 +42,19 @@ export function GestureFeedback({
           : status === "searching"
             ? ScanLine
             : Hand;
+  if (compact) return (
+    <article className={`feedback-history-item ${corrected ? "is-corrected" : ""}`}>
+      {corrected ? <Check size={16} aria-hidden="true" /> : <TriangleAlert size={16} aria-hidden="true" />}
+      <div><small>{corrected ? "Исправлено" : "Предыдущая подсказка"}</small><p>{uiText(message ?? title)}</p></div>
+    </article>
+  );
   return (
     <section className={`feedback-card ${status}`} aria-label="Обратная связь">
       <span className="eyebrow">Подсказка для вас</span>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           className="feedback-message"
-          key={status}
+          key={`${status}-${message ?? ""}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -102,17 +113,17 @@ export function GestureFeedback({
 
 export function GestureCountdown({ count, title }: { count: number; title: string }) {
   return (
-    <section className="feedback-card gesture-countdown" aria-label="Подготовка к следующему жесту">
-      <span className="eyebrow">Следующий жест</span>
+    <section className="feedback-card gesture-countdown" aria-label="Подготовка к жесту">
+      <span className="eyebrow">Подготовка к жесту</span>
       <h2>{title}</h2>
       <div className="countdown-dial" aria-hidden="true">
         <svg viewBox="0 0 80 80">
           <circle cx="40" cy="40" r="34" className="ring-track" />
           <circle cx="40" cy="40" r="34" className="ring-value" pathLength="3" strokeDasharray={`${4 - count} 3`} />
         </svg>
-        <strong key={count}>{count}</strong>
+        <strong key={count}>{count || "…"}</strong>
       </div>
-      <p role="status" aria-live="polite">Подготовьте руку<span className="sr-only">. Отсчёт: {count}</span></p>
+      <p role="status" aria-live="polite">{count ? "Подготовьте руку" : "Ожидаем камеру"}<span className="sr-only">. Отсчёт: {count}</span></p>
       <small>Ошибки пока не учитываются</small>
     </section>
   );

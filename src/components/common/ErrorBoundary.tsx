@@ -1,7 +1,7 @@
-import { Component } from 'react';
-import type { ReactNode } from 'react';
-import { RefreshCw, TriangleAlert } from 'lucide-react';
-import { Button } from './Button';
+import { Component } from "react";
+import type { ReactNode } from "react";
+import { RefreshCw, TriangleAlert } from "lucide-react";
+import { Button } from "./Button";
 
 export function ErrorFallback() {
   return (

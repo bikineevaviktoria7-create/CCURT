@@ -11,7 +11,10 @@ interface AppState {
   logout(): void;
   complete(result: LessonResult): void;
 }
+/** App-wide user and progress; provided by `AppProvider`. */
 export const AppContext = createContext<AppState | null>(null);
+
+/** Reads the app state; throws outside `AppProvider`. */
 export function useApp() {
   const context = useContext(AppContext);
   if (!context) throw new Error("AppProvider is required");

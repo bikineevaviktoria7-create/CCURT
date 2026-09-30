@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { allGestures } from "../data/lessons";
-import { buildDynamicModels, type DynamicGestureModel } from "../vision/dynamicMatcher";
 import { buildStaticModels, type StaticGestureModel } from "../vision/staticMatcher";
 import { gestureRepository, type GestureContent } from "./gestureRepository";
 import { settingsService } from "./settingsService";
+import type { LoadStatus } from "../types/loading";
 
+/** Gesture models built from the samples, plus labels and content for the UI. */
 export interface GestureLibrary {
   staticModels: ReadonlyMap<string, StaticGestureModel>;
-  dynamicModels: ReadonlyMap<string, DynamicGestureModel>;
   labels: Readonly<Record<string, string>>;
   content: Readonly<Record<string, GestureContent>>;
   sampleCounts: Readonly<Record<string, number>>;
@@ -20,14 +20,14 @@ gestureRepository.onChange(() => {
   cache = null;
 });
 
+/** Loads samples once and builds the models; the cache resets when the samples change. */
 export function loadGestureLibrary() {
   cache ??= gestureRepository.load().then(({ samples, content, tolerance }) => {
+    const staticModels = buildStaticModels(samples);
     const sampleCounts: Record<string, number> = {};
-    for (const sample of samples)
-      sampleCounts[sample.gestureId] = (sampleCounts[sample.gestureId] ?? 0) + 1;
+    for (const [id, model] of staticModels) sampleCounts[id] = model.samples.length;
     return {
-      staticModels: buildStaticModels(samples),
-      dynamicModels: buildDynamicModels(samples),
+      staticModels,
       labels: Object.fromEntries(allGestures.map((gesture) => [gesture.id, gesture.label])),
       content,
       sampleCounts,
@@ -49,9 +49,10 @@ export function recognitionTolerance(library?: GestureLibrary) {
   );
 }
 
+/** React state of the gesture library with a retry action; loads only when enabled. */
 export function useGestureLibrary(enabled = true) {
   const [state, setState] = useState<{
-    status: "loading" | "ready" | "error";
+    status: LoadStatus;
     library?: GestureLibrary;
   }>({ status: "loading" });
   const [revision, setRevision] = useState(0);

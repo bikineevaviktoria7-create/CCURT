@@ -1,16 +1,16 @@
-import { forwardRef } from 'react';
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { forwardRef } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { LoaderCircle } from "lucide-react";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: "primary" | "secondary" | "ghost" | "danger";
   loading?: boolean;
   fullWidth?: boolean;
   icon?: ReactNode;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', loading = false, fullWidth = false, icon, className, children, disabled, type = 'button', ...props },
+  { variant = "primary", loading = false, fullWidth = false, icon, className, children, disabled, type = "button", ...props },
   ref,
 ) {
   return (
@@ -18,7 +18,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {...props}
       ref={ref}
       type={type}
-      className={`button button--${variant}${fullWidth ? ' w-full' : ''}${className ? ` ${className}` : ''}`}
+      className={`button button--${variant}${fullWidth ? " w-full" : ""}${className ? ` ${className}` : ""}`}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
     >

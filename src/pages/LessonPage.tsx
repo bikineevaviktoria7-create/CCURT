@@ -1,10 +1,10 @@
-import { PLACEHOLDER_DESCRIPTION } from "../data/alphabet";
-import { uiText } from "../lib/uiText";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Camera, Check } from "lucide-react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useLessons } from "../hooks/useLessons";
+import { PLACEHOLDER_DESCRIPTION } from "../data/alphabet";
+import { uiText } from "../lib/uiText";
+import { useRouteLesson } from "../hooks/useRouteLesson";
 import { useLessonSession } from "../hooks/useLessonSession";
 import { useApp } from "../context/appState";
 import { lessonStatus } from "../services/progressService";
@@ -13,6 +13,7 @@ import { Button } from "../components/common/Button";
 import { Modal } from "../components/common/Modal";
 import { ContentState } from "../components/common/ContentState";
 import { GestureReference } from "../components/lessons/GestureReference";
+import { SectionTitle } from "../components/lessons/SectionTitle";
 import { PracticeGesture } from "../components/camera/PracticeGesture";
 import { ROUTES } from "../app/constants";
 import type { Lesson } from "../types/lesson";
@@ -34,8 +35,8 @@ function CompletedLesson({ getResult }: { getResult(): LessonResult }) {
 }
 
 function LessonPlayer({ lesson }: { lesson: Lesson }) {
-  const [exit, setExit] = useState(false);
-  const session = useLessonSession(lesson, exit);
+  const [exitRequested, setExitRequested] = useState(false);
+  const session = useLessonSession(lesson, exitRequested);
   const { state } = session;
   const navigate = useNavigate();
   const reduced = useReducedMotion();
@@ -56,17 +57,18 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
   if (!gesture) return <ContentState status="missing" />;
   return (
     <div className="lesson-player">
+      <div className="lesson-nav-area">
       <header className="lesson-topbar">
         <button
           className="icon-button"
           aria-label="Выйти из урока"
-          onClick={() => setExit(true)}
+          onClick={() => setExitRequested(true)}
         >
           <ArrowLeft size={20} />
         </button>
         <div className="lesson-topbar-title">
           <strong>
-            {lesson.sectionId === "alphabet" ? "Алфавит" : "Основные слова"} ·
+            <SectionTitle sectionId={lesson.sectionId} /> ·
             Урок {lesson.number}
           </strong>
           <span>{theory || ready ? "Изучение жестов" : "Практика"}</span>
@@ -97,6 +99,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
           </span>
         </div>
       </header>
+      </div>
       <main ref={main} tabIndex={-1} className="lesson-main">
         {theory ? (
           <AnimatePresence mode="wait" initial={false}>
@@ -166,20 +169,21 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
             gesture={gesture}
             targetKey={state.currentGestureIndex}
             onAccept={session.accept}
+            onCameraReady={session.setCameraReady}
             transitioning={state.phase === "transition" || state.phase === "prepare"}
             countdown={state.phase === "prepare" ? state.countdown : 0}
-            paused={exit}
+            paused={exitRequested}
           />
         )}
       </main>
-      {exit && (
-        <Modal title="Выйти из урока?" onClose={() => setExit(false)}>
+      {exitRequested && (
+        <Modal title="Выйти из урока?" onClose={() => setExitRequested(false)}>
           <p>
             Завершённые уроки сохранятся. Это занятие в следующий раз начнётся с
             изучения жестов
           </p>
           <div className="action-row">
-            <Button variant="secondary" onClick={() => setExit(false)}>
+            <Button variant="secondary" onClick={() => setExitRequested(false)}>
               Продолжить урок
             </Button>
             <Button variant="ghost" onClick={() => navigate(ROUTES.dashboard)}>
@@ -193,10 +197,7 @@ function LessonPlayer({ lesson }: { lesson: Lesson }) {
 }
 
 export function LessonPage() {
-  const { lessonId } = useParams();
-  const { lessons, status, retry } = useLessons();
-  const { progress } = useApp();
-  const lesson = lessons.find((item) => item.id === lessonId);
+  const { lesson, lessons, status, retry, progress } = useRouteLesson();
   if (status !== "ready")
     return (
       <Page>

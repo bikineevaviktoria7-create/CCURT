@@ -1,5 +1,5 @@
-import type { Gesture, Lesson, LessonSection } from "../types/lesson";
 import { alphabet, findLetterByLabel, PLACEHOLDER_DESCRIPTION } from "./alphabet.ts";
+import type { Gesture, Lesson, LessonSection } from "../types/lesson";
 
 // Lesson structure lives in code (stable, works offline). Gesture descriptions and
 // photos are loaded from the database / saved samples and merged in useLessons.
@@ -32,31 +32,28 @@ const moreAlphabetLessons: { id: string; title: string; description: string; lab
 ];
 
 const wordDefinitions = [
-  ["hello", "Привет"], ["goodbye", "До свидания"], ["yes", "Да"], ["no", "Нет"],
+  ["hello", "Привет"], ["goodbye", "Пока"], ["yes", "Да"], ["no", "Нет"],
   ["thanks", "Спасибо"], ["please", "Пожалуйста"], ["sorry", "Извините"],
   ["name", "Имя"], ["me", "Я"], ["you", "Вы"], ["help", "Помощь"],
   ["repeat", "Повторите"], ["understand", "Понимать"], ["home", "Дом"], ["water", "Вода"],
 ] as const;
 
-// Words are signed with a movement, so they are matched as dynamic gestures.
+// Only a recorded hand position is evaluated; movement is not assessed.
 export const words: readonly Gesture[] = wordDefinitions.map(([slug, label]) => ({
-  id: `word-${slug}`, slug, label, title: label, category: "word", kind: "dynamic",
+  id: `word-${slug}`, slug, label, title: label, category: "word", kind: "static", positionOnly: true,
   description: PLACEHOLDER_DESCRIPTION, difficulty: 1,
 }));
 
 export const allGestures: readonly Gesture[] = [...alphabet, ...words];
 
-const wordLessonDefinitions: { title: string; slugs: string[]; personalized?: "name" }[] = [
-  { title: "Приветствие", slugs: ["hello", "goodbye"] },
-  { title: "Да и нет", slugs: ["yes", "no"] },
-  { title: "Благодарность", slugs: ["thanks", "please"] },
-  { title: "Вежливые слова", slugs: ["please", "sorry", "thanks"] },
-  { title: "Знакомство: своё имя", slugs: ["name", "me", "you"], personalized: "name" },
-  { title: "Просьбы", slugs: ["help", "repeat", "please"] },
-  { title: "Повседневные слова", slugs: ["home", "water", "understand"] },
-  { title: "Смешанная практика", slugs: ["hello", "name", "thanks", "goodbye"] },
-  { title: "Повторение", slugs: ["yes", "no", "help", "repeat"] },
-  { title: "Итоговый урок", slugs: ["hello", "please", "thanks", "understand", "goodbye"] },
+// New IDs keep archived results from unrelated old word lessons from unlocking these topics.
+const wordLessonDefinitions = [
+  { id: "words-hello", title: "Привет", slugs: ["hello"] },
+  { id: "words-goodbye", title: "Пока", slugs: ["goodbye"] },
+  { id: "words-yes", title: "Да", slugs: ["yes"] },
+  { id: "words-no", title: "Нет", slugs: ["no"] },
+  { id: "words-review", title: "Повторение", slugs: ["hello", "goodbye", "yes", "no"] },
+  { id: "words-final", title: "Итоговый урок", slugs: ["hello", "goodbye", "yes", "no"] },
 ];
 
 const letters = (labels: readonly string[]) =>
@@ -76,13 +73,10 @@ export const lessons: readonly Lesson[] = [
     id, sectionId: "alphabet", number: alphabetTitles.length + index + 1, title, description,
     type: "learning", estimatedMinutes: 5, gestures: letters(labels),
   })),
-  ...wordLessonDefinitions.map<Lesson>(({ title, slugs, personalized }, index) => ({
-    id: String(index + 11), sectionId: "words", number: index + 1, title,
-    description: personalized
-      ? "Научитесь представляться: слова знакомства и своё имя дактилем."
-      : index < 7 ? "Познакомьтесь со словами для повседневного общения." : "Повторите знакомые слова и выражения.",
-    type: index < 7 ? "learning" : "practice", estimatedMinutes: 5,
+  ...wordLessonDefinitions.map<Lesson>(({ id, title, slugs }, index) => ({
+    id, sectionId: "words", number: index + 1, title,
+    description: index < 4 ? "Изучите слово и положение руки" : "Повторите четыре изученных слова",
+    type: index < 4 ? "learning" : "practice", estimatedMinutes: 5,
     gestures: slugs.flatMap((slug) => words.filter((gesture) => gesture.slug === slug)),
-    ...(personalized ? { personalized } : {}),
   })),
 ];

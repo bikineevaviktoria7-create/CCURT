@@ -24,15 +24,15 @@ export const router = createBrowserRouter([
     errorElement: <ErrorFallback />,
     children: [
       { path: ROUTES.dashboard, element: <DashboardPage /> },
-      { path: "/lessons/:lessonId", element: <LessonOverviewPage /> },
+      { path: ROUTES.lessonPattern, element: <LessonOverviewPage /> },
       {
-        path: "/lessons/:lessonId/play",
+        path: ROUTES.playPattern,
         lazy: async () => ({
           Component: (await import("../pages/LessonPage")).LessonPage,
         }),
       },
       {
-        path: "/results/:sessionId",
+        path: ROUTES.resultsPattern,
         lazy: async () => ({
           Component: (await import("../pages/ResultsPage")).ResultsPage,
         }),

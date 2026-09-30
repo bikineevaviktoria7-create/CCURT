@@ -1,11 +1,10 @@
 import {
   FilesetResolver,
   HandLandmarker,
-  PoseLandmarker,
-  type HandLandmarkerResult,
 } from "@mediapipe/tasks-vision";
+import type { HandLandmarkerResult } from "@mediapipe/tasks-vision";
 import { resolveHandedness } from "./normalize";
-import type { BodyReference, HandObservation } from "./types";
+import type { HandObservation } from "./types";
 
 // Browser-only: loads MediaPipe once per page and turns its raw output into
 // HandObservation objects for the pure recognition code.
@@ -15,10 +14,6 @@ const WASM_PATH = `${BASE}mediapipe/wasm`;
 const HAND_MODELS = [
   `${BASE}models/hand_landmarker.task`,
   "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-];
-const POSE_MODELS = [
-  `${BASE}models/pose_landmarker_lite.task`,
-  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
 ];
 
 /** Local model first (committed to the repo); Google's CDN as a fallback. */
@@ -54,8 +49,8 @@ async function withDelegates<T>(create: (delegate: "GPU" | "CPU") => Promise<T>)
 }
 
 let handPromise: Promise<HandLandmarker> | null = null;
-let posePromise: Promise<PoseLandmarker> | null = null;
 
+/** Shared HandLandmarker, created once; a failed load is retried on the next call. */
 export function getHandLandmarker() {
   handPromise ??= (async () => {
     const [files, model] = await Promise.all([getFileset(), fetchModel(HAND_MODELS)]);
@@ -76,23 +71,6 @@ export function getHandLandmarker() {
   return handPromise;
 }
 
-export function getPoseLandmarker() {
-  posePromise ??= (async () => {
-    const [files, model] = await Promise.all([getFileset(), fetchModel(POSE_MODELS)]);
-    return withDelegates((delegate) =>
-      PoseLandmarker.createFromOptions(files, {
-        baseOptions: { modelAssetBuffer: model, delegate },
-        runningMode: "VIDEO",
-        numPoses: 1,
-      }),
-    );
-  })().catch((error: unknown) => {
-    posePromise = null;
-    throw error;
-  });
-  return posePromise;
-}
-
 // MediaPipe requires strictly increasing timestamps across all calls.
 let lastTimestamp = 0;
 function nextTimestamp() {
@@ -101,6 +79,7 @@ function nextTimestamp() {
   return lastTimestamp;
 }
 
+/** Converts raw MediaPipe hand output into observations, skipping incomplete hands. */
 export function toObservations(result: HandLandmarkerResult): HandObservation[] {
   return result.landmarks.flatMap((image, index) => {
     const world = result.worldLandmarks[index];
@@ -117,22 +96,9 @@ export function toObservations(result: HandLandmarkerResult): HandObservation[] 
   });
 }
 
+/** Detects hands on the current video frame. */
 export function detectHands(landmarker: HandLandmarker, video: HTMLVideoElement) {
   return toObservations(landmarker.detectForVideo(video, nextTimestamp()));
-}
-
-export function detectBody(
-  landmarker: PoseLandmarker,
-  video: HTMLVideoElement,
-): BodyReference | undefined {
-  const pose = landmarker.detectForVideo(video, nextTimestamp()).landmarks[0];
-  const nose = pose?.[0];
-  const leftShoulder = pose?.[11];
-  const rightShoulder = pose?.[12];
-  if (!nose || !leftShoulder || !rightShoulder) return undefined;
-  if ((leftShoulder.visibility ?? 1) < 0.4 || (rightShoulder.visibility ?? 1) < 0.4)
-    return undefined;
-  return { nose, leftShoulder, rightShoulder };
 }
 
 let probe: HTMLCanvasElement | null = null;

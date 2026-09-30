@@ -43,13 +43,14 @@ for (const axis of ["x", "y", "z"]) add(`orientation.direction.${axis}`, "orient
 export const FEATURE_LAYOUT: readonly FeatureSpec[] = specs;
 export const FEATURE_COUNT = specs.length;
 
+/** Position of a named feature in the vector; throws for an unknown key. */
 export function featureIndex(key: string) {
   const index = FEATURE_LAYOUT.findIndex((spec) => spec.key === key);
   if (index < 0) throw new Error(`Неизвестный признак ${key}`);
   return index;
 }
 
-const bases: Record<FingerName, [number, number]> = {
+const FINGER_BASES: Record<FingerName, [number, number]> = {
   thumb: [1, 3],
   index: [5, 6],
   middle: [9, 10],
@@ -59,10 +60,10 @@ const bases: Record<FingerName, [number, number]> = {
 
 // Положение и размер руки убираем нормализацией, поворот сохраняем: он различает жесты.
 export function extractHandFeatures(
-  worldPoints: readonly Point3[],
+  world: readonly Point3[],
   hand: Hand,
 ): number[] {
-  const normalized = normalizeHand(worldPoints, hand);
+  const normalized = normalizeHand(world, hand);
   const features: number[] = [];
   // Сгибание: угол между соседними костями, делённый на π.
   for (const finger of FINGERS) {
@@ -81,7 +82,7 @@ export function extractHandFeatures(
   for (const target of [8, 12, 16, 20, 5, 9])
     features.push(distance(thumbTip, point(normalized, target)) / 2);
   const direction = (finger: FingerName) => {
-    const [from, to] = bases[finger];
+    const [from, to] = FINGER_BASES[finger];
     return sub(point(normalized, to), point(normalized, from));
   };
   const pairs: [FingerName, FingerName][] = [
@@ -112,6 +113,7 @@ export function fingerFlexion(features: readonly number[], finger: FingerName) {
   return sum / 3;
 }
 
+/** Reads a stored orientation vector back from the feature vector. */
 export function readVector(
   features: readonly number[],
   prefix: "orientation.normal" | "orientation.direction",

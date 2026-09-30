@@ -30,6 +30,8 @@ export interface GestureSample {
   sequence?: number[][];
   /** Dynamic gestures: recording duration, used for speed hints. */
   durationMs?: number;
+  /** Explicit coordinate convention used while recording; never infer it from the word. */
+  coordinateSpace?: "frame" | "body";
   /** Raw landmarks so features can be recomputed if the algorithm changes. */
   landmarks?: unknown;
   handedness?: Hand;
@@ -46,11 +48,4 @@ export interface HandObservation {
   hand: Hand;
   /** MediaPipe handedness score, 0–1. */
   score: number;
-}
-
-/** Optional body reference points from PoseLandmarker, image space. */
-export interface BodyReference {
-  nose: Point3;
-  leftShoulder: Point3;
-  rightShoulder: Point3;
 }

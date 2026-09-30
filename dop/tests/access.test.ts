@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { beforeEach, test } from "node:test";
 import { accountId, setMockAccount } from "./helpers/mockAccount.ts";
 import { storage } from "../../src/lib/storage.ts";
-import { currentUser, requirePlatform } from "../../src/services/accessService.ts";
+import { getCurrentUser, requirePlatform } from "../../src/services/accessService.ts";
 import { calculateLessonResult, emptyProgress, progressService } from "../../src/services/progressService.ts";
-import { previewExercise, previewService } from "../../src/services/previewService.ts";
+import { previewGesture, previewService } from "../../src/services/previewService.ts";
 import type { GestureAttempt } from "../../src/types/progress.ts";
 
 beforeEach(() => { setMockAccount(); previewService.reset(); });
-const attempt: GestureAttempt = { gestureId: previewExercise.id, mode: "real", success: true, skipped: false, errorCodes: [], durationMs: 1500 };
+const attempt: GestureAttempt = { gestureId: previewGesture.id, mode: "real", success: true, skipped: false, errorCodes: [], durationMs: 1500 };
 
 test("guest cannot read or mutate registered progress, regular lessons", () => {
   const result = calculateLessonResult("1", [{ ...attempt, gestureId: "letter-1" }], Date.now(), "saved");
@@ -24,9 +24,9 @@ test("guest cannot read or mutate registered progress, regular lessons", () => {
 test("mock account is never promoted to admin by a stored role", () => {
   storage.write("user", { id: accountId, name: "Руслана", isGuest: false, authProvider: "mock", role: "admin" });
   assert.doesNotThrow(requirePlatform);
-  assert.equal(currentUser()?.role, "user");
+  assert.equal(getCurrentUser()?.role, "user");
   storage.write("user", { id: "old-local-account", name: "Other", isGuest: false, role: "admin" });
-  assert.equal(currentUser(), null);
+  assert.equal(getCurrentUser(), null);
 });
 test("preview accepts only one real hand-visibility attempt and never creates lesson progress", () => {
   storage.write("user", { id: "guest", name: "Guest", isGuest: true });

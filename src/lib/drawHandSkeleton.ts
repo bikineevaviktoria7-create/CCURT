@@ -1,6 +1,6 @@
 import type { Point3 } from "../vision/types";
 
-const connections = [
+const HAND_CONNECTIONS = [
   [0, 1],
   [1, 2],
   [2, 3],
@@ -35,6 +35,7 @@ interface SkeletonOptions {
   correctLandmarks?: readonly number[];
   colors: { neutral: string; correct: string; incorrect: string };
 }
+/** Draw hand landmarks and bones on a canvas, matching the video's object-fit: contain. */
 export function drawHandSkeleton({
   ctx,
   landmarks,
@@ -69,7 +70,7 @@ export function drawHandSkeleton({
         : colors.neutral;
   ctx.lineWidth = Math.max(3, width / 180);
   ctx.lineCap = "round";
-  for (const [from = 0, to = 0] of connections) {
+  for (const [from = 0, to = 0] of HAND_CONNECTIONS) {
     const a = point(from),
       b = point(to);
     if (!a || !b) continue;
@@ -91,20 +92,53 @@ export function drawHandSkeleton({
   });
 }
 
+type SkeletonColors = SkeletonOptions["colors"];
+type SkeletonHighlights = Pick<SkeletonOptions, "incorrectLandmarks" | "correctLandmarks">;
+
+/** Hand skeleton drawn over the camera video; redraws on canvas resize. */
+export interface SkeletonOverlayApi {
+  /** Replaces the landmarks and highlights and redraws the canvas. */
+  draw(nextLandmarks: readonly Point3[], nextHighlights?: SkeletonHighlights): void;
+  /** Stops watching the canvas size. */
+  dispose(): void;
+}
+
 // Одинаковые размеры, зеркальность и цвета в уроке и при записи эталонов.
-export function createSkeletonOverlay(video: HTMLVideoElement | null, canvas: HTMLCanvasElement | null) {
-  const ctx = canvas?.getContext("2d");
-  if (!video || !canvas || !ctx) return;
-  const style = getComputedStyle(document.documentElement);
-  const colors = {
-    neutral: style.getPropertyValue("--color-skeleton-neutral").trim(),
-    correct: style.getPropertyValue("--color-skeleton-correct").trim(),
-    incorrect: style.getPropertyValue("--color-skeleton-incorrect").trim(),
-  };
-  let landmarks: readonly Point3[] = [];
-  let highlights: Pick<SkeletonOptions, "incorrectLandmarks" | "correctLandmarks"> = {};
-  function redraw() {
-    if (!video || !canvas || !ctx) return;
+export class SkeletonOverlay implements SkeletonOverlayApi {
+  private video: HTMLVideoElement;
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+  private colors: SkeletonColors;
+  private landmarks: readonly Point3[] = [];
+  private highlights: SkeletonHighlights = {};
+  private observer: ResizeObserver | undefined;
+
+  constructor(video: HTMLVideoElement, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+    this.video = video;
+    this.canvas = canvas;
+    this.ctx = ctx;
+    const style = getComputedStyle(document.documentElement);
+    this.colors = {
+      neutral: style.getPropertyValue("--color-skeleton-neutral").trim(),
+      correct: style.getPropertyValue("--color-skeleton-correct").trim(),
+      incorrect: style.getPropertyValue("--color-skeleton-incorrect").trim(),
+    };
+    this.observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(this.redraw);
+    this.observer?.observe(canvas);
+    this.redraw();
+  }
+
+  draw(nextLandmarks: readonly Point3[], nextHighlights: SkeletonHighlights = {}) {
+    this.landmarks = nextLandmarks;
+    this.highlights = nextHighlights;
+    this.redraw();
+  }
+
+  dispose() { this.observer?.disconnect(); }
+
+  /** Arrow field: passed to `ResizeObserver`. */
+  private redraw = () => {
+    const { video, canvas, ctx } = this;
     const dpr = window.devicePixelRatio || 1;
     const width = Math.round(canvas.clientWidth * dpr);
     const height = Math.round(canvas.clientHeight * dpr);
@@ -113,19 +147,18 @@ export function createSkeletonOverlay(video: HTMLVideoElement | null, canvas: HT
       canvas.height = height;
     }
     drawHandSkeleton({
-      ctx, landmarks, width, height, mirrored: true, colors, ...highlights,
+      ctx, landmarks: this.landmarks, width, height, mirrored: true, colors: this.colors, ...this.highlights,
       sourceWidth: video.videoWidth || 640, sourceHeight: video.videoHeight || 480,
     });
-  }
-  const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(redraw);
-  observer?.observe(canvas);
-  redraw();
-  return {
-    draw(points: readonly Point3[], nextHighlights: typeof highlights = {}) {
-      landmarks = points;
-      highlights = nextHighlights;
-      redraw();
-    },
-    dispose() { observer?.disconnect(); },
   };
+}
+
+/** Creates the overlay, or returns `undefined` when the video, canvas or 2D context is missing. */
+export function createSkeletonOverlay(
+  video: HTMLVideoElement | null,
+  canvas: HTMLCanvasElement | null,
+): SkeletonOverlayApi | undefined {
+  const ctx = canvas?.getContext("2d");
+  if (!video || !canvas || !ctx) return;
+  return new SkeletonOverlay(video, canvas, ctx);
 }

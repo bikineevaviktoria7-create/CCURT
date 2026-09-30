@@ -1,18 +1,16 @@
+import { StudentVideos } from "../components/landing/StudentVideos";
 import { ArrowRight, ScanLine, MoveUpRight } from "lucide-react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Page } from "../components/layout/Page";
 import { Button } from "../components/common/Button";
 import { useApp } from "../context/appState";
-import { authService } from "../services/authService";
+import { useStartPreview } from "../hooks/useStartPreview";
 import { ROUTES } from "../app/constants";
 
 export function LandingPage() {
-  const { user, setUser } = useApp();
+  const { user } = useApp();
   const navigate = useNavigate();
-  const start = () => {
-    setUser(authService.guest());
-    navigate(ROUTES.preview);
-  };
+  const start = useStartPreview();
   if (user && !user.isGuest) return <Navigate to={ROUTES.dashboard} replace />;
   return (
     <Page>
@@ -68,6 +66,7 @@ export function LandingPage() {
           </ol>
         </div>
       </section>
+      <StudentVideos />
     </Page>
   );
 }

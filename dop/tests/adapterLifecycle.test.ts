@@ -1,28 +1,40 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { loadBrowserModule } from "./helpers/loadBrowserModule.ts";
+import type { Gesture } from "../../src/types/lesson.ts";
 import type { RecognitionResult, RecognitionStatus } from "../../src/types/vision.ts";
 import type { RecognizerOptions } from "../../src/vision/recognizer.ts";
 
 const options: RecognizerOptions = {
-  targetId: "letter-1", targetLabel: "А", targetKind: "static", labels: {},
-  staticModels: new Map(), dynamicModels: new Map(), dominantHand: "right",
+  targetId: "letter-1", targetLabel: "А", labels: {},
+  staticModels: new Map(), dominantHand: "right",
 };
 
+/** Loads `mediaPipeVisionAdapter.ts` with test doubles for its imports and globals. */
+function loadMediaPipeAdapter(imports: Record<string, unknown>, globals: Record<string, unknown> = {}) {
+  return loadBrowserModule<typeof import("../../src/integrations/mediaPipeVisionAdapter.ts")>("src/integrations/mediaPipeVisionAdapter.ts", imports, globals);
+}
+
+/** Loads `landmarkers.ts` with test doubles for its imports and globals. */
+function loadLandmarkers(imports: Record<string, unknown>, globals: Record<string, unknown> = {}) {
+  return loadBrowserModule<typeof import("../../src/vision/landmarkers.ts")>("src/vision/landmarkers.ts", imports, globals);
+}
+
 function harness(load: () => Promise<unknown> = async () => ({})) {
+  let resets = 0;
   let time = 0;
   let status: RecognitionStatus = "searching";
   let processed = 0;
-  let fail = false;
+  let failing = false;
   const loops = new Set<() => void>();
   const results: RecognitionResult[] = [];
   const drawn: (RecognitionStatus | undefined)[] = [];
   const errors: unknown[] = [];
-  const module = loadBrowserModule<typeof import("../../src/integrations/mediaPipeVisionAdapter.ts")>("src/integrations/mediaPipeVisionAdapter.ts", {
-    "./visionAdapter": {},
+  const module = loadMediaPipeAdapter({
+    "./demoVisionAdapter": {},
     "../vision/landmarkers": {
       getHandLandmarker: load,
-      detectHands: () => { if (fail) throw new Error("Frame failed"); return []; },
+      detectHands: () => { if (failing) throw new Error("Frame failed"); return []; },
       measureBrightness: () => 120,
       onVideoFrames: (_video: unknown, callback: () => void, onError: (error: unknown) => void) => {
         const tick = () => { try { callback(); } catch (error) { onError(error); } };
@@ -33,20 +45,21 @@ function harness(load: () => Promise<unknown> = async () => ({})) {
     "../vision/recognizer": {
       pickHand: () => undefined,
       createGestureRecognizer: () => ({
-        reset() {},
-        recognizeFrame() { processed += 1; return { status, targetGesture: "А", confidence: 0.9, holdProgress: status === "success" ? 1 : 0 }; },
+        reset() { resets++; },
+        recognizeFrame() { processed += 1; return { status, targetLabel: "А", confidence: 0.9, holdProgress: status === "success" ? 1 : 0 }; },
       }),
     },
   }, { performance: { now: () => time } });
   return {
-    adapter: module.createMediaPipeVision(options, {
+    adapter: module.createMediaPipeVisionAdapter(options, {
       onResult: (result) => results.push(result),
       onFrame: () => { drawn.push(results.at(-1)?.status); },
       onError: (error) => errors.push(error),
     }), loops, results, drawn, errors,
     frames: () => processed,
-    fail: () => { fail = true; },
-    recover: () => { fail = false; },
+    resets: () => resets,
+    fail: () => { failing = true; },
+    recover: () => { failing = false; },
     tick: (now: number, next: RecognitionStatus = "searching") => {
       time = now; status = next; for (const tick of [...loops]) tick();
     },
@@ -100,7 +113,7 @@ test("stop during asynchronous startup prevents a late frame loop", async () => 
 test("failed MediaPipe fileset load is retried rather than cached forever", async () => {
   let filesets = 0;
   const model = {};
-  const { getHandLandmarker } = loadBrowserModule<typeof import("../../src/vision/landmarkers.ts")>("src/vision/landmarkers.ts", {
+  const { getHandLandmarker } = loadLandmarkers({
     "@mediapipe/tasks-vision": {
       FilesetResolver: { forVisionTasks: async () => { if (++filesets === 1) throw new Error("Offline"); return {}; } },
       HandLandmarker: { createFromOptions: async () => model },
@@ -128,7 +141,7 @@ for (const rvfc of [false, true]) {
       requestVideoFrameCallback: () => ++scheduled,
       cancelVideoFrameCallback: () => {},
     });
-    const { onVideoFrames } = loadBrowserModule<typeof import("../../src/vision/landmarkers.ts")>("src/vision/landmarkers.ts", {
+    const { onVideoFrames } = loadLandmarkers({
       "@mediapipe/tasks-vision": {}, "./normalize": {},
     }, {
       HTMLVideoElement: Video,
@@ -147,7 +160,7 @@ test("frame loop waits for dimensions and playback, and cancels its pending call
   let calls = 0;
   let cancelled = 0;
   class Video { readyState = 2; videoWidth = 0; videoHeight = 0; paused = false; ended = false; currentTime = 0; }
-  const { onVideoFrames } = loadBrowserModule<typeof import("../../src/vision/landmarkers.ts")>("src/vision/landmarkers.ts", {
+  const { onVideoFrames } = loadLandmarkers({
     "@mediapipe/tasks-vision": {}, "./normalize": {},
   }, { HTMLVideoElement: Video, requestAnimationFrame: (callback: () => void) => { next = callback; return 7; }, cancelAnimationFrame: (id: number) => { cancelled = id; } });
   const video = new Video();
@@ -164,18 +177,17 @@ test("frame loop waits for dimensions and playback, and cancels its pending call
 
 test("production never falls back to mock recognition, even without options", () => {
   let mock = 0;
-  const { createVisionAdapter } = loadBrowserModule<typeof import("../../src/integrations/mediaPipeVisionAdapter.ts")>("src/integrations/mediaPipeVisionAdapter.ts", {
-    "./visionAdapter": { createMockVision: () => { mock += 1; } },
+  const { createVisionAdapter } = loadMediaPipeAdapter({
+    "./demoVisionAdapter": { createDemoVisionAdapter: () => { mock += 1; } },
     "../vision/landmarkers": {},
     "../vision/recognizer": { createGestureRecognizer: () => ({}) },
   }, { __env: { DEV: false } });
-  const gesture = { id: "letter-1", label: "А", kind: "static" } as import("../../src/types/lesson.ts").Gesture;
+  const gesture = { id: "letter-1", label: "А", kind: "static" } as Gesture;
   const callbacks = { onResult() {}, onFrame() {}, onError() {} };
   assert.equal(createVisionAdapter(gesture, "real", callbacks).mode, "real");
   assert.equal(createVisionAdapter(gesture, "demo", callbacks).mode, "real");
   assert.equal(mock, 0);
 });
-
 
 test("paused adapter does not process or publish incorrect frames before preparation ends", async () => {
   const h = harness();

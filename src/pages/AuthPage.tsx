@@ -1,13 +1,14 @@
-import { uiText } from "../lib/uiText";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { ArrowLeft, Eye, EyeOff, LogIn } from "lucide-react";
+import { uiText } from "../lib/uiText";
 import { Page } from "../components/layout/Page";
 import { Button } from "../components/common/Button";
 import { useApp } from "../context/appState";
 import { authService } from "../services/authService";
-import { DEMO_PASSWORD, DEMO_USERS, ROUTES } from "../app/constants";
+import { useStartPreview } from "../hooks/useStartPreview";
+import { MOCK_PASSWORD, MOCK_USERS, ROUTES } from "../app/constants";
 
 export function AuthPage() {
   const { user, setUser } = useApp();
@@ -15,6 +16,7 @@ export function AuthPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const startPreview = useStartPreview();
   if (user && !user.isGuest) return <Navigate to={ROUTES.dashboard} replace />;
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,8 +52,8 @@ export function AuthPage() {
           {error && <p className="form-error" role="alert">{uiText(error)}</p>}
           <Button loading={loading} type="submit" fullWidth>Войти</Button>
         </form>
-        <div className="demo-note"><p>{DEMO_USERS.map(user => user.name).join(" · ")}</p><p>Пароль для всех: <code>{DEMO_PASSWORD}</code></p></div>
-        <button className="text-link guest-link" onClick={() => { setUser(authService.guest()); navigate(ROUTES.preview); }}>Предпросмотр</button>
+        <div className="demo-note"><p>{MOCK_USERS.map(user => user.name).join(" · ")}</p><p>Пароль для всех: <code>{MOCK_PASSWORD}</code></p></div>
+        <button className="text-link guest-link" onClick={startPreview}>Предпросмотр</button>
       </section>
     </Page>
   );

@@ -3,13 +3,15 @@ import { calculateLessonResult } from "../services/progressService.ts";
 import type { GestureAttempt, LessonSessionState } from "../types/progress";
 import type { Lesson } from "../types/lesson";
 
-export type SessionAction =
+/** Actions of `lessonSessionReducer`; `total` is the number of gestures in the current stage. */
+export type LessonSessionAction =
   | { type: "NEXT_THEORY"; total: number }
   | { type: "START_PRACTICE" }
   | { type: "COUNTDOWN_TICK" }
   | { type: "ACCEPT"; attempt: GestureAttempt }
   | { type: "ADVANCE"; total: number };
 
+/** State at the start of a lesson: first theory card, no attempts. */
 export function initialSession(now: number): LessonSessionState {
   return {
     phase: "learn",
@@ -19,9 +21,10 @@ export function initialSession(now: number): LessonSessionState {
     startedAt: now,
   };
 }
+/** Lesson order: all theory → ready → all practice → completed; out-of-order actions are ignored. */
 export function lessonSessionReducer(
   state: LessonSessionState,
-  action: SessionAction,
+  action: LessonSessionAction,
 ): LessonSessionState {
   switch (action.type) {
     case "NEXT_THEORY":
@@ -33,7 +36,8 @@ export function lessonSessionReducer(
       return state.phase === "ready"
         ? {
             ...state,
-            phase: "practice",
+            phase: "prepare",
+            countdown: 3,
             currentGestureIndex: 0,
           }
         : state;
@@ -63,12 +67,14 @@ export function lessonSessionReducer(
   }
 }
 
+/** Lesson session in React: timed transitions, countdown and the final result. */
 export function useLessonSession(lesson: Lesson, paused = false) {
   const [state, dispatch] = useReducer(
     lessonSessionReducer,
     Date.now(),
     initialSession,
   );
+  const [cameraReady, setCameraReady] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID());
   useEffect(() => {
     if (state.phase !== "transition") return;
@@ -83,11 +89,11 @@ export function useLessonSession(lesson: Lesson, paused = false) {
     return () => window.clearTimeout(timer);
   }, [state.phase, lesson.gestures.length]);
   useEffect(() => {
-    if (state.phase !== "prepare" || paused) return;
+    if (state.phase !== "prepare" || paused || !cameraReady) return;
     // 950 ms success + three 650 ms beats = 2.9 s to change hand position.
     const timer = window.setTimeout(() => dispatch({ type: "COUNTDOWN_TICK" }), 650);
     return () => window.clearTimeout(timer);
-  }, [state.phase, state.countdown, paused]);
+  }, [state.phase, state.countdown, paused, cameraReady]);
   const accept = useCallback(
     (attempt: GestureAttempt) => dispatch({ type: "ACCEPT", attempt }),
     [],
@@ -95,6 +101,7 @@ export function useLessonSession(lesson: Lesson, paused = false) {
   return {
     state,
     accept,
+    setCameraReady,
     nextTheory: () =>
       dispatch({
         type: "NEXT_THEORY",

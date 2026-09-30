@@ -1,17 +1,16 @@
-import { uiText } from "../../lib/uiText";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { ROUTES } from "../../app/constants";
 import { Camera, CameraOff } from "lucide-react";
-import { useCamera, cameraMessages } from "../../hooks/useCamera";
+import { uiText } from "../../lib/uiText";
+import { useCamera, CAMERA_MESSAGES } from "../../hooks/useCamera";
 import {
   useRecognition,
   type RecognitionConfig,
 } from "../../hooks/useRecognition";
-import { useGestureLibrary } from "../../services/gestureLibrary";
+import { recognitionTolerance, useGestureLibrary } from "../../services/gestureLibrary";
 import { useSettings } from "../../services/settingsService";
-import {
-  recognitionTolerance,
-} from "../../services/gestureLibrary";
-import { feedback } from "../../lib/feedback";
+import { soundFeedback } from "../../lib/soundFeedback";
 import { GestureReference } from "../lessons/GestureReference";
 import { GestureCountdown, GestureFeedback } from "../feedback/GestureFeedback";
 import { Button } from "../common/Button";
@@ -27,6 +26,7 @@ export function PracticeGesture({
   paused,
   targetKey,
   exercise,
+  onCameraReady,
 }: {
   gesture: Gesture;
   onAccept(attempt: GestureAttempt): void;
@@ -35,13 +35,15 @@ export function PracticeGesture({
   paused: boolean;
   targetKey?: string | number;
   exercise?: "hand-visibility";
+  onCameraReady?: (ready: boolean) => void;
 }) {
   const camera = useCamera();
+  useEffect(() => { onCameraReady?.(camera.status === "ready"); }, [camera.status, onCameraReady]);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [modal, setModal] = useState<"skip" | null>(null);
   const settings = useSettings();
-  const vision = useGestureLibrary(!exercise);
-  const context = vision.library;
+  const gestureLibrary = useGestureLibrary(!exercise);
+  const library = gestureLibrary.library;
   const config = useMemo<RecognitionConfig>(
     () => ({
       mode: "real",
@@ -49,15 +51,14 @@ export function PracticeGesture({
       targetKey,
       options: {
         exercise,
-        labels: context?.labels ?? {},
-        staticModels: context?.staticModels ?? new Map(),
-        dynamicModels: context?.dynamicModels ?? new Map(),
+        labels: library?.labels ?? {},
+        staticModels: library?.staticModels ?? new Map(),
         dominantHand: settings.dominantHand,
-        tolerance: recognitionTolerance(context),
-        customHints: context?.content[gesture.id]?.hints,
+        tolerance: recognitionTolerance(library),
+        customHints: library?.content[gesture.id]?.hints,
       },
     }),
-    [context, settings.dominantHand, gesture.id, camera.status, targetKey, exercise],
+    [library, settings.dominantHand, gesture.id, camera.status, targetKey, exercise],
   );
   const recognition = useRecognition(
     gesture,
@@ -79,20 +80,20 @@ export function PracticeGesture({
     previousSoundStatus.current = status;
     if (status === previous) return;
     if (status === "success") {
-      feedback.success(gesture.category === "letter" ? `Буква ${gesture.label}` : gesture.label);
+      soundFeedback.success(gesture.category === "letter" ? `Буква ${gesture.label}` : gesture.label);
     } else if ((status === "almost" || status === "incorrect") && previous !== "almost" && previous !== "incorrect") {
-      feedback.hint();
+      soundFeedback.hint();
     }
   }, [status, gesture.category, gesture.label]);
   const failure =
     camera.status !== "loading" && camera.status !== "ready"
-      ? cameraMessages[camera.status]
+      ? CAMERA_MESSAGES[camera.status]
       : null;
   return (
     <>
       <div className="practice-heading">
         <div>
-          <span className="eyebrow">{countdown > 0 ? "Следующий жест" : "Показывайте"}</span>
+          <span className="eyebrow">{countdown > 0 ? "Подготовка к жесту" : "Показывайте"}</span>
           <h1>
             {exercise ? "Удержите руку в кадре" : "Покажите "}
             {!exercise && (gesture.category === "letter"
@@ -159,7 +160,7 @@ export function PracticeGesture({
               </div>
             )}
           </div>
-          {!exercise && vision.status === "error" && <div className="notice" role="alert">Не удалось загрузить упражнение <Button variant="secondary" onClick={vision.retry}>Загрузить снова</Button></div>}
+          {!exercise && gestureLibrary.status === "error" && <div className="notice" role="alert">Не удалось загрузить упражнение <Button variant="secondary" onClick={gestureLibrary.retry}>Загрузить снова</Button></div>}
           {recognition.modelLoading && camera.status === "ready" && <p role="status">Подготавливаем упражнение…</p>}
           {recognition.modelError && (
             <div className="notice" role="alert">
@@ -173,9 +174,27 @@ export function PracticeGesture({
         </section>
         <aside className="feedback-column">
           {countdown > 0 ? (
-            <GestureCountdown count={countdown} title={gesture.title} />
+            <GestureCountdown count={camera.status === "ready" ? countdown : 0} title={gesture.title} />
           ) : (
-            <GestureFeedback result={recognition.result} handVisibility={Boolean(exercise)} />
+            <>
+              <GestureFeedback result={recognition.presentation.current} handVisibilityCheck={Boolean(exercise)} />
+              {recognition.presentation.history.length > 0 && <div className="feedback-history" aria-label="История подсказок">
+                {recognition.presentation.history.map(item => <GestureFeedback key={item.key} result={item.result} compact corrected={item.corrected} />)}
+              </div>}
+            </>
+          )}
+          {recognition.result.referenceIssue &&
+            <Link className="text-link" to={ROUTES.dashboard}>Вернуться к урокам</Link>}
+          {import.meta.env.DEV && new URLSearchParams(window.location.search).has("visionDebug") && (
+            <details className="recognition-diagnostics">
+              <summary>Диагностика распознавания</summary>
+              <pre>{JSON.stringify({ phase: countdown ? "countdown" : recognition.result.status,
+                target: gesture.label, predicted: recognition.result.predictedLabel,
+                referenceIssue: recognition.result.referenceIssue,
+                ...recognition.result.diagnostics, confidence: recognition.result.confidence,
+                holdProgress: recognition.result.holdProgress, errorCodes: recognition.result.errorCodes,
+              }, null, 2)}</pre>
+            </details>
           )}
           <p className="feedback-note">
             Одна подсказка за раз.

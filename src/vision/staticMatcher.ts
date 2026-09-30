@@ -1,4 +1,4 @@
-import { FEATURE_GROUPS, FEATURE_LAYOUT, groupIndexes } from "./features.ts";
+import { FEATURE_COUNT, FEATURE_VERSION, FEATURE_GROUPS, FEATURE_LAYOUT, groupIndexes } from "./features.ts";
 import type { FeatureGroup, GestureSample } from "./types.ts";
 
 /** Defaults tuned for FEATURE_VERSION 1; adjustable with the tolerance slider. */
@@ -30,6 +30,7 @@ export interface GestureMatch {
   distance: number;
 }
 
+/** Weighted RMS difference between two full feature vectors. */
 export function weightedDistance(a: readonly number[], b: readonly number[]) {
   let sum = 0;
   for (let index = 0; index < FEATURE_LAYOUT.length; index++) {
@@ -108,10 +109,17 @@ export function buildStaticModel(
   return { gestureId, samples, acceptDistance, groupThreshold };
 }
 
+/** Reject old/incomplete vectors before they can distort distances and thresholds. */
+export function isStaticSample(sample: GestureSample): boolean {
+  return sample.featureVersion === FEATURE_VERSION && Array.isArray(sample.features) &&
+    sample.features.length === FEATURE_COUNT && sample.features.every(Number.isFinite);
+}
+
+/** Groups samples by gesture and builds one static model per gesture. */
 export function buildStaticModels(samples: readonly GestureSample[]) {
   const byGesture = new Map<string, number[][]>();
   for (const sample of samples) {
-    if (!sample.features?.length) continue;
+    if (!isStaticSample(sample) || !sample.features) continue;
     const list = byGesture.get(sample.gestureId) ?? [];
     list.push(sample.features);
     byGesture.set(sample.gestureId, list);
@@ -123,7 +131,7 @@ export function buildStaticModels(samples: readonly GestureSample[]) {
 }
 
 /** Distance to a gesture = mean of the two closest samples (robust to one bad sample). */
-export function distanceToModel(
+export function distanceToStaticModel(
   features: readonly number[],
   model: StaticGestureModel,
 ) {
@@ -135,6 +143,7 @@ export function distanceToModel(
   return (first + second) / 2;
 }
 
+/** The recorded sample closest to the input. */
 export function nearestSample(
   features: readonly number[],
   model: StaticGestureModel,
@@ -159,7 +168,7 @@ export function rankGestures(
   return [...models.values()]
     .map((model) => ({
       gestureId: model.gestureId,
-      distance: distanceToModel(features, model),
+      distance: distanceToStaticModel(features, model),
     }))
     .sort((a, b) => a.distance - b.distance);
 }
@@ -170,6 +179,7 @@ export function similarity(distance: number, acceptDistance: number) {
 }
 
 export interface StaticDecision {
+  nearest: GestureMatch;
   distance: number;
   accept: number;
   /** Closest other gesture, when it is itself within its accept distance. */
@@ -189,7 +199,7 @@ export function compareStaticGesture(
 ): StaticDecision | undefined {
   const model = models.get(targetId);
   if (!model) return undefined;
-  const distance = distanceToModel(features, model);
+  const distance = distanceToStaticModel(features, model);
   const accept = model.acceptDistance * tolerance;
   const other = rankGestures(features, models).find((match) => match.gestureId !== targetId);
   const otherModel = other ? models.get(other.gestureId) : undefined;
@@ -198,5 +208,5 @@ export function compareStaticGesture(
       ? other
       : undefined;
   const matched = distance <= accept && !(rival && rival.distance < distance * 0.75);
-  return { distance, accept, rival, matched };
+  return { distance, accept, rival, matched, nearest: other && other.distance < distance ? other : { gestureId: targetId, distance } };
 }

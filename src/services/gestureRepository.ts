@@ -1,6 +1,7 @@
+import type { ReferenceMedia } from "../types/lesson";
 import { supabase } from "../lib/supabase";
 import { localDb } from "../lib/localDb";
-import { FEATURE_VERSION } from "../vision/features";
+import { isStaticSample } from "../vision/staticMatcher";
 import type { GestureSample } from "../vision/types";
 import type { GestureErrorCode } from "../types/vision";
 
@@ -8,13 +9,16 @@ import type { GestureErrorCode } from "../types/vision";
 // hints) come from. Priority: Supabase → saved sample data (IndexedDB) → the
 // bundled backup public/data/samples.json. The app keeps working if any is missing.
 
+/** Description, photo and hints of one gesture. */
 export interface GestureContent {
   id: string;
   description?: string;
   imageUrl?: string;
+  referenceMedia?: ReferenceMedia;
   hints?: Partial<Record<GestureErrorCode, string>>;
 }
 
+/** Format of public/data/samples.json. */
 export interface GestureBundle {
   version: number;
   exportedAt: string | null;
@@ -77,40 +81,6 @@ async function loadBundle(): Promise<GestureBundle> {
   }
 }
 
-async function loadRemoteSamples(): Promise<GestureSample[]> {
-  if (!supabase) return [];
-  const rows: SampleRow[] = [];
-  // Page through the table (PostgREST returns at most 1000 rows per request).
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase
-      .from("gesture_samples")
-      .select("id, gesture_id, features, sequence, duration_ms, handedness, feature_version, created_at")
-      .range(from, from + 999);
-    if (error) throw error;
-    rows.push(...((data ?? []) as SampleRow[]));
-    if (!data || data.length < 1000) break;
-  }
-  return rows.map(fromRow);
-}
-
-async function loadRemoteContent(): Promise<GestureContent[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("gestures")
-    .select("id, description, reference_image_url, hints");
-  if (error) throw error;
-  return ((data ?? []) as GestureRow[]).map((row) => ({
-    id: row.id,
-    description: row.description ?? undefined,
-    imageUrl: row.reference_image_url ?? undefined,
-    hints: row.hints ?? undefined,
-  }));
-}
-
-const localSamples = async () => (await localDb.get<GestureSample[]>(LOCAL_SAMPLES)) ?? [];
-const localContent = async () =>
-  (await localDb.get<Record<string, GestureContent>>(LOCAL_CONTENT)) ?? {};
-
 function mergeContent(...sources: GestureContent[][]) {
   const result: Record<string, GestureContent> = {};
   // Later sources have lower priority: fill only missing fields.
@@ -121,57 +91,126 @@ function mergeContent(...sources: GestureContent[][]) {
         id: item.id,
         description: current.description || item.description || undefined,
         imageUrl: current.imageUrl || item.imageUrl || undefined,
+        referenceMedia: current.referenceMedia ?? item.referenceMedia,
         hints: { ...(item.hints ?? {}), ...(current.hints ?? {}) },
       };
     }
   return result;
 }
 
-let cache: Promise<{ samples: GestureSample[]; content: Record<string, GestureContent>; tolerance?: number }> | null = null;
-
-async function loadAll() {
-  const [remoteSamples, remoteContent, local, localInfo, bundle] = await Promise.all([
-    loadRemoteSamples().catch((error: unknown) => {
-      console.warn("[SignStep] эталоны из Supabase недоступны", error);
-      return [] as GestureSample[];
-    }),
-    loadRemoteContent().catch(() => [] as GestureContent[]),
-    localSamples(),
-    localContent(),
-    loadBundle(),
-  ]);
-  const byId = new Map<string, GestureSample>();
-  // Remote first, then local unsynced recordings, then the bundled backup —
-  // the backup is only used for gestures that have no samples anywhere else.
-  for (const sample of [...remoteSamples, ...local]) byId.set(sample.id, sample);
-  const covered = new Set([...byId.values()].map((sample) => sample.gestureId));
-  for (const sample of bundle.samples)
-    if (!covered.has(sample.gestureId)) byId.set(sample.id, sample);
-  const samples = [...byId.values()].filter(
-    (sample) => sample.featureVersion === FEATURE_VERSION,
-  );
-  return {
-    samples,
-    content: mergeContent(remoteContent, Object.values(localInfo), bundle.gestures),
-    tolerance: bundle.tolerance,
-  };
+/** Everything loaded from all sample sources. */
+export interface GestureData {
+  samples: GestureSample[];
+  content: Record<string, GestureContent>;
+  tolerance?: number;
 }
 
-const listeners = new Set<() => void>();
+/** Cached gesture samples and content with change notifications. */
+export interface GestureStore {
+  load(): Promise<GestureData>;
+  /** Drops the cache and notifies listeners (arrow field: safe to pass as a callback). */
+  invalidate: () => void;
+  /** Adds a change listener and returns the unsubscribe function (arrow field). */
+  onChange: (listener: () => void) => () => void;
+}
 
-export const gestureRepository = {
+/** Cached gesture samples and content from all sources, with change notifications. */
+export class GestureRepository implements GestureStore {
+  private supabase: typeof supabase;
+  private localDb: typeof localDb;
+  private cache: Promise<GestureData> | null;
+  private listeners: Set<() => void>;
+
+  constructor(client: typeof supabase, database: typeof localDb) {
+    this.supabase = client;
+    this.localDb = database;
+    this.cache = null;
+    this.listeners = new Set<() => void>();
+  }
+
   load() {
-    cache ??= loadAll();
-    return cache;
-  },
-  invalidate() {
-    cache = null;
-    listeners.forEach((listener) => listener());
-  },
-  onChange(listener: () => void) {
-    listeners.add(listener);
+    this.cache ??= this.loadAll();
+    return this.cache;
+  }
+
+  invalidate = () => {
+    this.cache = null;
+    this.listeners.forEach((listener) => listener());
+  };
+
+  onChange = (listener: () => void) => {
+    this.listeners.add(listener);
     return () => {
-      listeners.delete(listener);
+      this.listeners.delete(listener);
     };
-  },
-};
+  };
+
+  private async loadRemoteSamples(): Promise<GestureSample[]> {
+    const client = this.supabase;
+    if (!client) return [];
+    const rows: SampleRow[] = [];
+    // Page through the table (PostgREST returns at most 1000 rows per request).
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await client
+        .from("gesture_samples")
+        .select("id, gesture_id, features, sequence, duration_ms, handedness, feature_version, created_at")
+        .range(from, from + 999);
+      if (error) throw error;
+      rows.push(...((data ?? []) as SampleRow[]));
+      if (!data || data.length < 1000) break;
+    }
+    return rows.map(fromRow);
+  }
+
+  private async loadRemoteContent(): Promise<GestureContent[]> {
+    const client = this.supabase;
+    if (!client) return [];
+    const { data, error } = await client
+      .from("gestures")
+      .select("id, description, reference_image_url, hints");
+    if (error) throw error;
+    return ((data ?? []) as GestureRow[]).map((row) => ({
+      id: row.id,
+      description: row.description ?? undefined,
+      imageUrl: row.reference_image_url ?? undefined,
+      hints: row.hints ?? undefined,
+    }));
+  }
+
+  private async localSamples() {
+    return (await this.localDb.get<GestureSample[]>(LOCAL_SAMPLES)) ?? [];
+  }
+
+  private async localContent() {
+    return (await this.localDb.get<Record<string, GestureContent>>(LOCAL_CONTENT)) ?? {};
+  }
+
+  private async loadAll(): Promise<GestureData> {
+    const [remoteSamples, remoteContent, local, localInfo, bundle] = await Promise.all([
+      this.loadRemoteSamples().catch((error: unknown) => {
+        console.warn("[SignStep] эталоны из Supabase недоступны", error);
+        return [] as GestureSample[];
+      }),
+      this.loadRemoteContent().catch(() => [] as GestureContent[]),
+      this.localSamples(),
+      this.localContent(),
+      loadBundle(),
+    ]);
+    const byId = new Map<string, GestureSample>();
+    // Remote first, then local unsynced recordings, then the bundled backup —
+    // the backup is only used for gestures that have no compatible static samples anywhere else.
+    for (const sample of [...remoteSamples, ...local]) byId.set(sample.id, sample);
+    const covered = new Set([...byId.values()].filter(isStaticSample).map((sample) => sample.gestureId));
+    for (const sample of bundle.samples)
+      if (!covered.has(sample.gestureId)) byId.set(sample.id, sample);
+    const samples = [...byId.values()].filter(isStaticSample);
+    return {
+      samples,
+      content: mergeContent(remoteContent, Object.values(localInfo), bundle.gestures),
+      tolerance: bundle.tolerance,
+    };
+  }
+}
+
+/** Shared gesture repository of the app. */
+export const gestureRepository: GestureStore = new GestureRepository(supabase, localDb);

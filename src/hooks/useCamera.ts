@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export type CameraStatus =
   "loading" | "ready" | "denied" | "unavailable" | "busy" | "error";
-export const cameraMessages: Record<
+/** Title and message shown for each camera failure. */
+export const CAMERA_MESSAGES: Record<
   Exclude<CameraStatus, "ready" | "loading">,
   { title: string; message: string }
 > = {
@@ -45,6 +46,7 @@ function waitForVideo(video: HTMLVideoElement, signal: AbortSignal): Promise<voi
   });
 }
 
+/** Starts the front camera in `videoRef`, reports its status and releases all tracks on stop. */
 export function useCamera() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const attachedVideo = useRef<HTMLVideoElement | null>(null);

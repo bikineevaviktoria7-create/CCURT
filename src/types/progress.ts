@@ -30,7 +30,8 @@ export interface LessonResult {
   completedAt: string;
   score: number;
   accuracy: number;
-  stars: Exclude<Stars, 0>;
+  /** 0 means the lesson was not passed: such a result is shown but never saved. */
+  stars: Stars;
   durationMs: number;
   attempts: GestureAttempt[];
 }

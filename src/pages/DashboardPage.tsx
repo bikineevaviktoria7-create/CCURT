@@ -1,3 +1,5 @@
+import { lessons as lessonData } from "../data/lessons";
+import type { CSSProperties } from "react";
 import { BookOpen, Flame } from "lucide-react";
 import { ProgressChart } from "../components/progress/ProgressChart";
 import { streakDays } from "../services/progressService";
@@ -12,9 +14,9 @@ import { useLessons } from "../hooks/useLessons";
 export function DashboardPage() {
   const { user, progress } = useApp();
   const { lessons, status, retry } = useLessons();
-  const completed = Object.values(progress.lessons);
-  const total = lessons.length || 20;
-  const percentage = Math.round((completed.length / total) * 100);
+  const completed = lessonData.flatMap(lesson => progress.lessons[lesson.id] ? [progress.lessons[lesson.id]!] : []);
+  const total = lessonData.length;
+  const percentage = total ? Math.round((completed.length / total) * 100) : 0;
   const streak = streakDays(progress.sessions);
   return (
     <Page>
@@ -35,11 +37,11 @@ export function DashboardPage() {
             <small>Прогресс сохранится на этом устройстве</small>
           )}
         </div>
-        {completed.length > 0 ? (
+        {progress.sessions.length > 0 ? (
           <div className="progress-summary">
             <div
               className="summary-ring"
-              style={{ "--progress": `${percentage}%` } as React.CSSProperties}
+              style={{ "--progress": `${percentage}%` } as CSSProperties}
             >
               <span>{percentage}%</span>
             </div>
@@ -57,7 +59,7 @@ export function DashboardPage() {
             </div>
             <div className="summary-score">
               <strong>
-                {completed.reduce((sum, item) => sum + item.bestScore, 0)}
+                {Object.values(progress.lessons).reduce((sum, item) => sum + item.bestScore, 0)}
               </strong>
               <span>очков</span>
             </div>
@@ -68,7 +70,7 @@ export function DashboardPage() {
             <span>Ваш путь начинается здесь. Выберите первый урок</span>
           </div>
         )}
-        {completed.length > 0 && (
+        {progress.sessions.length > 0 && (
           <section className="lesson-statistics" aria-labelledby="lesson-statistics-title">
             <h2 id="lesson-statistics-title">Статистика занятий</h2>
             <div className="progress-insights">

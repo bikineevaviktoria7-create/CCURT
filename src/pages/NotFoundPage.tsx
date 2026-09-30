@@ -1,6 +1,6 @@
-import { ArrowLeft, RouteOff } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { ROUTES } from '../app/constants';
+import { ArrowLeft, RouteOff } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ROUTES } from "../app/constants";
 
 export function NotFoundPage() {
   return (

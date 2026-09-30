@@ -9,18 +9,11 @@ import {
 import { resolveHandedness } from "../../src/vision/normalize.ts";
 import {
   buildStaticModels,
-  distanceToModel,
+  distanceToStaticModel,
   rankGestures,
 } from "../../src/vision/staticMatcher.ts";
 import { analyzeGestureErrors } from "../../src/vision/errorAnalyzer.ts";
 import { createGestureRecognizer } from "../../src/vision/recognizer.ts";
-import {
-  buildDynamicModels,
-  dtwDistance,
-  MotionSegmenter,
-  resample,
-} from "../../src/vision/dynamicMatcher.ts";
-import type { GestureSample, HandObservation } from "../../src/vision/types.ts";
 import {
   FIST,
   makeHand,
@@ -32,6 +25,7 @@ import {
   V_SIGN,
   type HandPose,
 } from "./helpers/syntheticHand.ts";
+import type { GestureSample, HandObservation } from "../../src/vision/types.ts";
 
 const samplesFor = (gestureId: string, pose: HandPose, count = 10, seed = 10): GestureSample[] =>
   Array.from({ length: count }, (_, index) => ({
@@ -41,13 +35,13 @@ const samplesFor = (gestureId: string, pose: HandPose, count = 10, seed = 10): G
     featureVersion: 1,
   }));
 
-const library = [
+const samples = [
   ...samplesFor("open", OPEN),
   ...samplesFor("fist", FIST, 10, 100),
   ...samplesFor("pinky", PINKY_BENT, 10, 200),
   ...samplesFor("v", V_SIGN, 10, 300),
 ];
-const models = buildStaticModels(library);
+const models = buildStaticModels(samples);
 
 test("features ignore hand size and position; left hand matches right", () => {
   const hand = makeHand(V_SIGN);
@@ -84,7 +78,7 @@ test("kNN ranks the right gesture first for new noisy attempts", () => {
     const ranking = rankGestures(attempt, models);
     assert.equal(ranking[0]?.gestureId, id);
     const model = models.get(id)!;
-    assert.ok(distanceToModel(attempt, model) <= model.acceptDistance, `${id} within accept distance`);
+    assert.ok(distanceToStaticModel(attempt, model) <= model.acceptDistance, `${id} within accept distance`);
   }
 });
 
@@ -116,10 +110,8 @@ test("recognizer: held correct gesture succeeds, wrong one gets a concrete hint"
   const options = {
     targetId: "open",
     targetLabel: "О",
-    targetKind: "static" as const,
     labels: { open: "О", fist: "А", pinky: "Б", v: "В" },
     staticModels: models,
-    dynamicModels: new Map(),
     dominantHand: "right" as const,
   };
   const good = createGestureRecognizer(options);
@@ -142,10 +134,8 @@ test("recognizer reports a hand cut by the frame edge and missing samples", () =
   const recognizer = createGestureRecognizer({
     targetId: "open",
     targetLabel: "О",
-    targetKind: "static",
     labels: {},
     staticModels: models,
-    dynamicModels: new Map(),
     dominantHand: "right",
   });
   const world = makeHand(OPEN);
@@ -159,55 +149,19 @@ test("recognizer reports a hand cut by the frame edge and missing samples", () =
   const empty = createGestureRecognizer({
     targetId: "unknown",
     targetLabel: "Я",
-    targetKind: "static",
     labels: {},
     staticModels: models,
-    dynamicModels: new Map(),
     dominantHand: "right",
   });
   assert.equal(empty.available, false);
-});
-
-test("DTW tolerates speed differences but separates different movements", () => {
-  const wave = (frames: number, amplitude: number) =>
-    Array.from({ length: frames }, (_, index) => [
-      Math.sin((index / (frames - 1)) * Math.PI * 2) * amplitude,
-      0.5,
-      0, 0, 0, 0, 0, -1,
-    ]);
-  const slow = resample(wave(40, 1));
-  const fast = resample(wave(15, 1));
-  const lift = resample(Array.from({ length: 30 }, (_, index) => [0, 1 - index / 15, 0, 0, 0, 0, 0, -1]));
-  assert.ok(dtwDistance(slow, fast) < 0.05);
-  assert.ok(dtwDistance(slow, lift) > 0.2);
-  const models = buildDynamicModels([
-    { id: "a", gestureId: "wave", sequence: wave(30, 1), durationMs: 1200, featureVersion: 1 },
-    { id: "b", gestureId: "wave", sequence: wave(26, 1.05), durationMs: 1100, featureVersion: 1 },
-  ]);
-  assert.ok(models.get("wave")!.acceptDistance > 0);
-});
-
-test("motion segmenter cuts a movement out of the stream", () => {
-  const segmenter = new MotionSegmenter();
-  let recording;
-  for (let frame = 0; frame < 120 && !recording; frame++) {
-    const t = frame * 33;
-    const moving = frame >= 10 && frame < 50;
-    const x = moving ? Math.sin((frame - 10) / 6) * 0.8 : frame >= 50 ? Math.sin(40 / 6) * 0.8 : 0;
-    recording = segmenter.push({ vector: [x, 0, 0, 0, 0, 0, 0, -1], t }, t);
-  }
-  assert.ok(recording, "a recording is produced");
-  assert.ok(recording.durationMs > 600 && recording.durationMs <= MotionSegmenter.MAX_MS);
 });
 
 test("a similar gesture that is clearly closer is never counted as the target", () => {
   const recognizer = createGestureRecognizer({
     targetId: "open",
     targetLabel: "О",
-    targetKind: "static",
     labels: { open: "О", pinky: "Б" },
     staticModels: models,
-    dynamicModels: new Map(),
     dominantHand: "right",
     tolerance: 3, // so forgiving that "open" alone would accept the attempt
   });

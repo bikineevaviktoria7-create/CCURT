@@ -28,6 +28,7 @@ export const PAIR_FINGERS: Record<FingerPair, [FingerName, FingerName]> = {
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
+/** Hint and status texts shown to the learner, one action per message. */
 export const hints = {
   bendFinger: (finger: FingerName) =>
     `Согните ${FINGER_TITLES[finger]} — сейчас он выпрямлен.`,
@@ -50,19 +51,12 @@ export const hints = {
     `Поверните ладонь ${target} — сейчас она ${current}.`,
   similarTo: (label: string, correction?: string) =>
     `Сейчас это похоже на «${label}».${correction ? ` ${correction}` : ""}`,
-  handLocation: (direction: string) => `Переместите руку ${direction}.`,
-  moveWider: () => "Сделайте движение шире.",
-  moveSmaller: () => "Сделайте движение короче и аккуратнее.",
-  moveSlower: () => "Сделайте движение медленнее.",
-  moveFaster: () => "Сделайте движение чуть быстрее и увереннее.",
   handNotVisible: () => "Покажите руку в камеру.",
   handCut: () => "Рука не полностью в кадре — отодвиньте её немного дальше.",
   handTooFar: () => "Рука слишком далеко — придвиньте её ближе к камере.",
   lowLight: () => "Слишком темно — включите свет или повернитесь к окну.",
   holdStill: () => "Удерживайте жест…",
   checking: () => "Проверяем жест…",
-  startMoving: () => "Покажите жест целиком — движение начнётся с руки в кадре.",
-  recording: () => "Записываем движение…",
   noSamples: () =>
     "Проверенные эталоны этого жеста ещё не добавлены. Оценка жеста пока недоступна.",
 } as const;

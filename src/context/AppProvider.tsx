@@ -1,20 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import type { User } from "../types/auth";
-import type { LessonResult } from "../types/progress";
 import { authService } from "../services/authService";
 import { emptyProgress, isDemoResult, progressService } from "../services/progressService";
 import { syncService } from "../services/syncService";
+import { useLatestRef } from "../hooks/useLatestRef";
 import { AppContext } from "./appState";
+import type { User } from "../types/auth";
+import type { LessonResult } from "../types/progress";
 
+/** Holds the signed-in user and their progress; restores the session on start. */
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [user, updateUser] = useState(authService.getUser);
+  const [user, updateUser] = useState(authService.getCurrentUser);
   const [authReady, setAuthReady] = useState(!authService.isRemote);
   const [progress, updateProgress] = useState(() =>
     user ? progressService.getProgress(user.id) : emptyProgress(),
   );
-  const current = useRef(user);
-  current.current = user;
+  const current = useLatestRef(user);
 
   const pull = useCallback((account: User) => {
     if (account.isGuest || account.authProvider === "mock" || !syncService.enabled) return;
@@ -24,11 +25,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
       (error: unknown) => console.warn("[SignStep] прогресс не синхронизирован", error),
     );
-  }, []);
+  }, [current]);
 
   useEffect(() => {
     let active = true;
-    authService.init().then(
+    authService.initialize().then(
       (restored) => {
         if (!active) return;
         updateUser(restored);
@@ -48,7 +49,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       active = false;
       unsubscribe();
     };
-  }, [pull]);
+  }, [pull, current]);
 
   const setUser = useCallback(
     (next: User) => {

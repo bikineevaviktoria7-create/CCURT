@@ -2,18 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import { requirePlatform } from "../services/accessService";
 import { lessons as lessonData } from "../data/lessons";
 import { gestureReferences, findLetterByLabel, PLACEHOLDER_DESCRIPTION } from "../data/alphabet";
-import { gestureRepository } from "../services/gestureRepository";
+import { gestureRepository, type GestureContent } from "../services/gestureRepository";
 import { loadGestureLibrary } from "../services/gestureLibrary";
 import { settingsService, useSettings } from "../services/settingsService";
 import { useApp } from "../context/appState";
 import {
-  buildNameGestures,
+  buildSpelledName,
   firstWord,
   isCyrillicName,
   personalizeLesson,
 } from "../lib/nameLesson";
 import type { Gesture, Lesson } from "../types/lesson";
-import type { GestureContent } from "../services/gestureRepository";
+import type { LoadStatus } from "../types/loading";
 
 /** Lessons never wait longer than this for descriptions/photos from the network. */
 const CONTENT_TIMEOUT_MS = 4000;
@@ -43,8 +43,8 @@ function withContent(gesture: Gesture, content: Record<string, GestureContent>):
   return {
     ...gesture,
     description: item.description?.trim() || gesture.description || PLACEHOLDER_DESCRIPTION,
-    ...(!drawing && item.imageUrl
-      ? { referenceMedia: { kind: "image" as const, src: item.imageUrl, alt: `Жест «${gesture.label}»` } }
+    ...(!drawing && (item.referenceMedia || item.imageUrl)
+      ? { referenceMedia: item.referenceMedia ?? { kind: "image" as const, src: item.imageUrl!, alt: `Жест «${gesture.label}»` } }
       : {}),
   };
 }
@@ -59,11 +59,10 @@ async function loadLessons(): Promise<readonly Lesson[]> {
   }));
 }
 
+/** Lessons with descriptions, photos and the learner's name; reloads when samples change. */
 export function useLessons() {
   const [lessons, setLessons] = useState<readonly Lesson[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">(
-    "loading",
-  );
+  const [status, setStatus] = useState<LoadStatus>("loading");
   const [revision, setRevision] = useState(0);
   const [recorded, setRecorded] = useState<{
     ids: ReadonlySet<string> | null;
@@ -87,11 +86,11 @@ export function useLessons() {
     );
     // Which letters have samples decides which letters of a name can be practised.
     loadGestureLibrary().then(
-      (context) =>
+      (library) =>
         active &&
         setRecorded({
-          ids: context.totalSamples ? new Set(Object.keys(context.sampleCounts)) : null,
-          content: context.content as Record<string, GestureContent>,
+          ids: library.totalSamples ? new Set(Object.keys(library.sampleCounts)) : null,
+          content: library.content as Record<string, GestureContent>,
         }),
       () => undefined,
     );
@@ -107,7 +106,7 @@ export function useLessons() {
     return lessons.map((lesson) => {
       if (lesson.personalized !== "name") return lesson;
       const spelled = name
-        ? buildNameGestures(name, findLetterByLabel, recorded.ids)
+        ? buildSpelledName(name, findLetterByLabel, recorded.ids)
         : null;
       if (spelled)
         spelled.letters = spelled.letters.map((letter) => withContent(letter, recorded.content));

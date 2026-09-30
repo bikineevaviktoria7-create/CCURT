@@ -1,4 +1,3 @@
-import type { GestureErrorCode } from "../types/vision.ts";
 import {
   FEATURE_GROUPS,
   featureIndex,
@@ -12,6 +11,7 @@ import {
   nearestSample,
   type StaticGestureModel,
 } from "./staticMatcher.ts";
+import type { GestureErrorCode } from "../types/vision.ts";
 import type { FeatureGroup, FingerName, Point3 } from "./types.ts";
 
 // Сравниваем каждый палец с эталоном. Самое значимое отклонение превращаем в подсказку.
@@ -25,7 +25,7 @@ export interface Issue {
   landmarks: number[];
 }
 
-export interface Analysis {
+export interface StaticAnalysis {
   issues: Issue[];
   errorCodes: GestureErrorCode[];
   message?: string;
@@ -43,14 +43,14 @@ function flexState(value: number): "straight" | "half" | "bent" {
 function fingerIssue(
   finger: FingerName,
   input: readonly number[],
-  reference: readonly number[],
+  sample: readonly number[],
 ): Pick<Issue, "code" | "message"> {
-  const difference = fingerFlexion(input, finger) - fingerFlexion(reference, finger);
+  const difference = fingerFlexion(input, finger) - fingerFlexion(sample, finger);
   if (difference < -0.05)
     return { code: "FINGER_NOT_BENT", message: hints.bendFinger(finger) };
   if (difference > 0.05)
     return { code: "FINGER_NOT_STRAIGHT", message: hints.straightenFinger(finger) };
-  const state = flexState(fingerFlexion(reference, finger));
+  const state = flexState(fingerFlexion(sample, finger));
   return {
     code: state === "straight" ? "FINGER_NOT_STRAIGHT" : "FINGER_NOT_BENT",
     message: hints.fingerShape(finger, state),
@@ -62,21 +62,21 @@ const value = (features: readonly number[], key: string) =>
 
 function thumbIssue(
   input: readonly number[],
-  reference: readonly number[],
+  sample: readonly number[],
 ): Pick<Issue, "code" | "message"> {
-  const touchReference = value(reference, "thumb.tipTo8");
+  const touchSample = value(sample, "thumb.tipTo8");
   const touchInput = value(input, "thumb.tipTo8");
-  if (touchReference < 0.2 && touchInput > touchReference + 0.08)
+  if (touchSample < 0.2 && touchInput > touchSample + 0.08)
     return { code: "THUMB_POSITION", message: hints.touchThumbIndex() };
-  if (touchReference > 0.3 && touchInput < 0.18)
+  if (touchSample > 0.3 && touchInput < 0.18)
     return { code: "THUMB_POSITION", message: hints.releaseThumbIndex() };
-  const palmReference = value(reference, "thumb.tipTo9");
+  const palmSample = value(sample, "thumb.tipTo9");
   const palmInput = value(input, "thumb.tipTo9");
-  if (palmInput > palmReference + 0.06)
+  if (palmInput > palmSample + 0.06)
     return { code: "THUMB_POSITION", message: hints.thumbToPalm() };
-  if (palmInput < palmReference - 0.06)
+  if (palmInput < palmSample - 0.06)
     return { code: "THUMB_POSITION", message: hints.thumbAway() };
-  return { ...fingerIssue("thumb", input, reference), code: "THUMB_POSITION" };
+  return { ...fingerIssue("thumb", input, sample), code: "THUMB_POSITION" };
 }
 
 const PAIRS: readonly FingerPair[] = [
@@ -93,7 +93,7 @@ const CONTACT_PAIR: Record<string, FingerPair> = {
 
 function spreadIssue(
   input: readonly number[],
-  reference: readonly number[],
+  sample: readonly number[],
 ): Pick<Issue, "code" | "message" | "landmarks"> {
   let worst: { pair: FingerPair; difference: number } = {
     pair: "index-middle",
@@ -101,12 +101,12 @@ function spreadIssue(
   };
   for (const pair of PAIRS) {
     const difference =
-      value(input, `spread.${pair}`) - value(reference, `spread.${pair}`);
+      value(input, `spread.${pair}`) - value(sample, `spread.${pair}`);
     if (Math.abs(difference) > Math.abs(worst.difference)) worst = { pair, difference };
   }
   for (const [key, pair] of Object.entries(CONTACT_PAIR)) {
     const difference =
-      value(input, `spread.contact${key}`) - value(reference, `spread.contact${key}`);
+      value(input, `spread.contact${key}`) - value(sample, `spread.contact${key}`);
     if (Math.abs(difference) > Math.abs(worst.difference)) worst = { pair, difference };
   }
   const [a, b] = PAIR_FINGERS[worst.pair];
@@ -139,16 +139,16 @@ function facingTitle(normal: Point3) {
 
 function orientationIssue(
   input: readonly number[],
-  reference: readonly number[],
+  sample: readonly number[],
 ): Pick<Issue, "code" | "message"> {
   const directionInput = readVector(input, "orientation.direction");
-  const directionReference = readVector(reference, "orientation.direction");
+  const directionSample = readVector(sample, "orientation.direction");
   const normalInput = readVector(input, "orientation.normal");
-  const normalReference = readVector(reference, "orientation.normal");
-  const directionTarget = directionTitle(directionReference);
+  const normalSample = readVector(sample, "orientation.normal");
+  const directionTarget = directionTitle(directionSample);
   const directionError =
     directionTitle(directionInput) !== directionTarget ? 1 : 0;
-  const facingTarget = facingTitle(normalReference);
+  const facingTarget = facingTitle(normalSample);
   const facingCurrent = facingTitle(normalInput);
   if (facingTarget.target !== facingCurrent.target && !directionError)
     return {
@@ -170,25 +170,25 @@ function orientationIssue(
 export function analyzeGestureErrors(
   input: readonly number[],
   model: StaticGestureModel,
-): Analysis {
-  const reference = nearestSample(input, model);
+): StaticAnalysis {
+  const sample = nearestSample(input, model);
   const issues: Issue[] = [];
   const correct: number[] = [];
   for (const group of FEATURE_GROUPS) {
     const ratio =
-      groupDeviation(input, reference, group) / model.groupThreshold[group];
+      groupDeviation(input, sample, group) / model.groupThreshold[group];
     if (ratio <= 1) {
       if (isFinger(group)) correct.push(...FINGER_LANDMARKS[group]);
       continue;
     }
     if (group === "thumb")
-      issues.push({ group, ratio, landmarks: [...FINGER_LANDMARKS.thumb], ...thumbIssue(input, reference) });
+      issues.push({ group, ratio, landmarks: [...FINGER_LANDMARKS.thumb], ...thumbIssue(input, sample) });
     else if (isFinger(group))
-      issues.push({ group, ratio, landmarks: [...FINGER_LANDMARKS[group]], ...fingerIssue(group, input, reference) });
+      issues.push({ group, ratio, landmarks: [...FINGER_LANDMARKS[group]], ...fingerIssue(group, input, sample) });
     else if (group === "spread")
-      issues.push({ group, ratio, ...spreadIssue(input, reference) });
+      issues.push({ group, ratio, ...spreadIssue(input, sample) });
     else
-      issues.push({ group, ratio, landmarks: [...PALM_LANDMARKS], ...orientationIssue(input, reference) });
+      issues.push({ group, ratio, landmarks: [...PALM_LANDMARKS], ...orientationIssue(input, sample) });
   }
   // A folded finger also changes the spread/contact features of its neighbours:
   // report the finger itself, not a confusing "spread" hint.

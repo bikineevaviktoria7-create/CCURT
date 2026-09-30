@@ -1,16 +1,18 @@
-import { createMockVision } from "./visionAdapter";
-import type { Gesture } from "../types/lesson";
+import type { HandLandmarker } from "@mediapipe/tasks-vision";
+import { createDemoVisionAdapter } from "./demoVisionAdapter";
 import {
-  detectBody,
   detectHands,
   getHandLandmarker,
-  getPoseLandmarker,
   measureBrightness,
   onVideoFrames,
 } from "../vision/landmarkers";
-import { createGestureRecognizer, pickHand, type RecognizerOptions } from "../vision/recognizer";
-import type { BodyReference } from "../vision/types";
-import type { HandLandmarker, PoseLandmarker } from "@mediapipe/tasks-vision";
+import {
+  createGestureRecognizer,
+  pickHand,
+  type GestureRecognizerApi,
+  type RecognizerOptions,
+} from "../vision/recognizer";
+import type { Gesture } from "../types/lesson";
 import type {
   VisionAdapter,
   VisionCallbacks,
@@ -18,98 +20,107 @@ import type {
 } from "../types/vision";
 
 // MediaPipe даёт точки, наш распознаватель — результат, UI получает только callbacks.
-export function createMediaPipeVision(options: RecognizerOptions, callbacks: VisionCallbacks): VisionAdapter {
-  const recognizer = createGestureRecognizer(options);
-  let hand: HandLandmarker | null = null;
-  let pose: PoseLandmarker | null = null;
-  let stopLoop: (() => void) | null = null;
-  let paused = false;
-  let lastEmit = -Infinity;
-  let generation = 0;
-  let frameCount = 0;
-  let brightness: number | undefined;
-  let body: BodyReference | undefined;
-  let finished = false;
+export class MediaPipeVisionAdapter implements VisionAdapter {
+  readonly mode = "real";
+  private readonly options: RecognizerOptions;
+  private readonly callbacks: VisionCallbacks;
+  private readonly recognizer: GestureRecognizerApi;
+  private handLandmarker: HandLandmarker | null = null;
+  private stopLoop: (() => void) | null = null;
+  private paused = false;
+  private lastEmitAt = -Infinity;
+  private generation = 0;
+  private frameCount = 0;
+  private brightness: number | undefined;
+  private finished = false;
 
-  async function initialize() {
-    hand = await getHandLandmarker();
-    if (options.targetKind === "dynamic")
-      pose = await getPoseLandmarker().catch((error: unknown) => {
-        // Body landmarks only refine the location; words still work without them.
-        console.warn("[SignStep] модель позы недоступна", error);
-        return null;
-      });
+  constructor(options: RecognizerOptions, callbacks: VisionCallbacks) {
+    this.options = options;
+    this.callbacks = callbacks;
+    // Через фабрику, чтобы тесты могли подставить двойник распознавателя.
+    this.recognizer = createGestureRecognizer(options);
   }
 
-  async function start(video: HTMLVideoElement) {
-    stop();
-    const startGeneration = generation;
-    if (!hand) await initialize();
-    if (startGeneration !== generation) return;
-    finished = false;
-    lastEmit = -Infinity;
-    frameCount = 0;
-    body = undefined;
-    brightness = undefined;
-    recognizer.reset();
-    stopLoop = onVideoFrames(video, () => recognizeVideoFrame(video), (error) => {
-      stop();
-      callbacks.onError(error);
-    });
+  async initialize() {
+    this.handLandmarker = await getHandLandmarker();
+
   }
 
-  function stop() {
-    generation += 1;
-    stopLoop?.();
-    stopLoop = null;
+  async start(video: HTMLVideoElement) {
+    this.stop();
+    const startGeneration = this.generation;
+    if (!this.handLandmarker) await this.initialize();
+    if (startGeneration !== this.generation) return;
+    this.finished = false;
+    this.lastEmitAt = -Infinity;
+    this.frameCount = 0;
+    this.brightness = undefined;
+    this.recognizer.reset();
+    this.stopLoop = onVideoFrames(video, () => this.recognizeVideoFrame(video), this.handleLoopError);
   }
 
-  function pause(value: boolean) {
-    paused = value;
+  stop() {
+    this.generation += 1;
+    this.stopLoop?.();
+    this.stopLoop = null;
   }
 
-  function recognizeVideoFrame(video: HTMLVideoElement) {
-    if (paused || finished || !hand) return;
+  pause(value: boolean) {
+    this.paused = value;
+  }
+
+  /** Обработчик ошибок цикла кадров; передаётся как колбэк, поэтому стрелочное поле. */
+  private readonly handleLoopError = (error: unknown) => {
+    this.stop();
+    this.callbacks.onError(error);
+  };
+
+  /** Вызывается из цикла кадров; стрелочное поле, чтобы сохранить `this`. */
+  private readonly recognizeVideoFrame = (video: HTMLVideoElement) => {
+    if (this.paused || this.finished || !this.handLandmarker) return;
     const now = performance.now();
-    frameCount += 1;
+    this.frameCount += 1;
     // 1. MediaPipe: видео → 21 точка руки.
-    const hands = detectHands(hand, video);
-    if (frameCount % 30 === 1) brightness = measureBrightness(video);
-    if (pose && frameCount % 2 === 0) body = detectBody(pose, video) ?? body;
-    const chosen = pickHand(hands, options.dominantHand);
+    const hands = detectHands(this.handLandmarker, video);
+    if (this.frameCount % 30 === 1) this.brightness = measureBrightness(video);
+    const chosen = pickHand(hands, this.options.dominantHand);
     // 2. Наш код: нормализация → признаки → сравнение → ошибки → удержание.
-    const result = recognizer.recognizeFrame({
+    const result = this.recognizer.recognizeFrame({
       t: now,
       hands,
-      body,
-      brightness,
+      brightness: this.brightness,
     });
     // 3. Точки рисуем каждый кадр, текст и прогресс обновляем максимум 10 раз/с.
-    if (result.status === "success" || now - lastEmit >= 100) {
-      lastEmit = now;
-      callbacks.onResult(result);
+    if (result.status === "success" || now - this.lastEmitAt >= 100) {
+      this.lastEmitAt = now;
+      this.callbacks.onResult(result);
     }
     // Publish semantics first so the final canvas frame uses the success colors.
-    callbacks.onFrame(chosen?.image ?? []);
+    this.callbacks.onFrame(chosen?.image ?? []);
     if (result.status === "success") {
-      finished = true;
-      stop();
+      this.finished = true;
+      this.stop();
     }
-  }
-
-  return { mode: "real", initialize, start, stop, pause };
+  };
 }
 
+/** Создаёт MediaPipe-адаптер; точка создания, которую подменяют тесты. */
+export function createMediaPipeVisionAdapter(options: RecognizerOptions, callbacks: VisionCallbacks): VisionAdapter {
+  return new MediaPipeVisionAdapter(options, callbacks);
+}
+
+/** Picks the adapter: demo only in development, otherwise MediaPipe. */
 export function createVisionAdapter(
   gesture: Gesture,
   mode: VisionMode,
   callbacks: VisionCallbacks,
-  options?: Omit<RecognizerOptions, "targetId" | "targetLabel" | "targetKind">,
+  options?: Omit<RecognizerOptions, "targetId" | "targetLabel">,
 ): VisionAdapter {
-  if (mode === "demo" && import.meta.env.DEV) return createMockVision(gesture.label, callbacks);
-  return createMediaPipeVision({
-    labels: {}, staticModels: new Map(), dynamicModels: new Map(), dominantHand: "right",
+  if (mode === "demo" && import.meta.env.DEV) return createDemoVisionAdapter(gesture.label, callbacks);
+  return createMediaPipeVisionAdapter({
+    labels: {}, staticModels: new Map(), dominantHand: "right",
     ...options,
-    targetId: gesture.id, targetLabel: gesture.label, targetKind: gesture.kind,
+    diagnostics: import.meta.env.DEV,
+    targetId: gesture.id, targetLabel: gesture.label,
   }, callbacks);
 }

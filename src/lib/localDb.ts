@@ -17,6 +17,7 @@ function open(): Promise<IDBDatabase | null> {
   });
 }
 
+/** Async key-value store in IndexedDB with an in-memory fallback. */
 export const localDb = {
   async get<T>(key: string): Promise<T | undefined> {
     const db = await open();

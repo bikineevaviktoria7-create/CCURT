@@ -3,7 +3,8 @@ import { test } from "node:test";
 import { createGestureRecognizer, type RecognizerOptions } from "../../src/vision/recognizer.ts";
 import { makeHand, toImage } from "./helpers/syntheticHand.ts";
 import type { HandObservation } from "../../src/vision/types.ts";
-const options: RecognizerOptions = { targetId: "preview-hand", targetLabel: "Рука в кадре", targetKind: "static", exercise: "hand-visibility", labels: {}, staticModels: new Map(), dynamicModels: new Map(), dominantHand: "right" };
+
+const options: RecognizerOptions = { targetId: "preview-hand", targetLabel: "Рука в кадре", exercise: "hand-visibility", labels: {}, staticModels: new Map(), dominantHand: "right" };
 const world = makeHand();
 const hand: HandObservation = { world, image: toImage(world), hand: "right", score: 0.95 };
 
@@ -26,18 +27,4 @@ test("preview requires observed landmarks; time alone never succeeds", () => {
 test("ordinary gestures without reference samples never pass with visible hands", () => {
   const recognizer = createGestureRecognizer({ ...options, exercise: undefined, targetId: "letter-1" });
   for (let t = 0; t < 10000; t += 40) assert.equal(recognizer.recognizeFrame({ t, hands: [hand] }).status, "idle");
-});
-
-import { buildDynamicModels, handLocation, motionVector } from "../../src/vision/dynamicMatcher.ts";
-import { extractHandFeatures } from "../../src/vision/features.ts";
-
-test("dynamic recording completed by losing the hand is evaluated instead of discarded", () => {
-  const hands = Array.from({ length: 30 }, (_, i) => ({ ...hand, image: toImage(world, { x: .5 + .15 * Math.sin(i * Math.PI / 8), y: .6 }) }));
-  const sequence = hands.map(h => motionVector(extractHandFeatures(h.world, h.hand), handLocation(h.image, h.hand)));
-  const dynamicModels = buildDynamicModels([{ id: "synthetic-motion", gestureId: "motion", sequence, durationMs: 1500, featureVersion: 1 }]);
-  const recognizer = createGestureRecognizer({ ...options, exercise: undefined, targetId: "motion", targetKind: "dynamic", dynamicModels });
-  hands.forEach((h, index) => recognizer.recognizeFrame({ t: 100 + index * 40, hands: [h] }));
-  assert.notEqual(recognizer.recognizeFrame({ t: 1300, hands: [] }).status, "success");
-  const result = recognizer.recognizeFrame({ t: 1700, hands: [] });
-  assert.equal(result.status, "success");
 });

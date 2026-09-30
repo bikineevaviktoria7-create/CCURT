@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Trophy } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 
-interface Row {
+interface LeaderboardRow {
   rank: number;
   name: string;
   total_score: number;
@@ -12,12 +12,12 @@ interface Row {
 
 /** Top learners by the sum of their best lesson scores (only first names are shown). */
 export function Leaderboard({ refreshKey }: { refreshKey: number }) {
-  const [rows, setRows] = useState<Row[] | null>(null);
+  const [rows, setRows] = useState<LeaderboardRow[] | null>(null);
   useEffect(() => {
     if (!supabase) return;
     let active = true;
     supabase.rpc("get_leaderboard", { p_limit: 10 }).then(({ data, error }) => {
-      if (active) setRows(error ? [] : ((data ?? []) as Row[]));
+      if (active) setRows(error ? [] : ((data ?? []) as LeaderboardRow[]));
     });
     return () => {
       active = false;

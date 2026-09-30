@@ -30,19 +30,35 @@ export const FINGERS: readonly FingerName[] = [
   "pinky",
 ];
 
-export const sub = (a: Point3, b: Point3): Point3 => ({
-  x: a.x - b.x,
-  y: a.y - b.y,
-  z: a.z - b.z,
-});
-export const dot = (a: Point3, b: Point3) => a.x * b.x + a.y * b.y + a.z * b.z;
-export const cross = (a: Point3, b: Point3): Point3 => ({
-  x: a.y * b.z - a.z * b.y,
-  y: a.z * b.x - a.x * b.z,
-  z: a.x * b.y - a.y * b.x,
-});
-export const length = (a: Point3) => Math.sqrt(dot(a, a));
-export const distance = (a: Point3, b: Point3) => length(sub(a, b));
+/** Vector from `b` to `a`. */
+export function sub(a: Point3, b: Point3): Point3 {
+  return {
+    x: a.x - b.x,
+    y: a.y - b.y,
+    z: a.z - b.z,
+  };
+}
+/** Dot product of two vectors. */
+export function dot(a: Point3, b: Point3) {
+  return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+/** Cross product of two vectors. */
+export function cross(a: Point3, b: Point3): Point3 {
+  return {
+    x: a.y * b.z - a.z * b.y,
+    y: a.z * b.x - a.x * b.z,
+    z: a.x * b.y - a.y * b.x,
+  };
+}
+/** Euclidean length of a vector. */
+export function length(a: Point3) {
+  return Math.sqrt(dot(a, a));
+}
+/** Euclidean distance between two points. */
+export function distance(a: Point3, b: Point3) {
+  return length(sub(a, b));
+}
+/** Vector of length 1 in the same direction; a zero vector stays zero. */
 export function unit(a: Point3): Point3 {
   const size = length(a) || 1;
   return { x: a.x / size, y: a.y / size, z: a.z / size };
@@ -68,20 +84,21 @@ export function resolveHandedness(label: string | undefined): Hand {
  * (wrist → middle finger base) has length 1 and mirrors a left hand so that
  * both hands share one set of reference samples.
  */
-export function normalizeHand(points: readonly Point3[], hand: Hand): Point3[] {
-  const wrist = points[WRIST];
-  const middleBase = points[9];
-  if (!wrist || !middleBase || points.length < 21)
+export function normalizeHand(landmarks: readonly Point3[], hand: Hand): Point3[] {
+  const wrist = landmarks[WRIST];
+  const middleBase = landmarks[9];
+  if (!wrist || !middleBase || landmarks.length < 21)
     throw new Error("Ожидается 21 точка руки");
   const scale = distance(wrist, middleBase) || 1;
   const mirror = hand === "left" ? -1 : 1;
-  return points.map((point) => ({
+  return landmarks.map((point) => ({
     x: ((point.x - wrist.x) / scale) * mirror,
     y: (point.y - wrist.y) / scale,
     z: (point.z - wrist.z) / scale,
   }));
 }
 
-export function point(points: readonly Point3[], index: number): Point3 {
-  return points[index] ?? { x: 0, y: 0, z: 0 };
+/** Point by landmark index; missing points read as the origin. */
+export function point(landmarks: readonly Point3[], index: number): Point3 {
+  return landmarks[index] ?? { x: 0, y: 0, z: 0 };
 }

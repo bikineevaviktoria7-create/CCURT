@@ -1,12 +1,3 @@
-import type { GestureErrorCode, RecognitionResult, RecognitionStatus } from "../types/vision.ts";
-import {
-  analyzeDynamic,
-  distanceToDynamicModel,
-  handLocation,
-  motionVector,
-  MotionSegmenter,
-  type DynamicGestureModel,
-} from "./dynamicMatcher.ts";
 import { analyzeGestureErrors } from "./errorAnalyzer.ts";
 import { extractHandFeatures } from "./features.ts";
 import { hints } from "./hints.ts";
@@ -16,27 +7,33 @@ import {
   type StaticGestureModel,
 } from "./staticMatcher.ts";
 import { HintSelector, HoldStabilizer } from "./stabilizer.ts";
-import type { BodyReference, Hand, HandObservation } from "./types.ts";
+import type { GestureErrorCode, RecognitionResult, RecognitionStatus } from "../types/vision.ts";
+import type { Hand, HandObservation } from "./types.ts";
 
 export interface VisionFrame {
   t: number;
   hands: readonly HandObservation[];
-  body?: BodyReference;
   /** Average frame brightness 0–255, measured occasionally. */
   brightness?: number;
+}
+
+/** Frame-by-frame recognizer for one lesson step. */
+export interface GestureRecognizerApi {
+  recognizeFrame(frame: VisionFrame): RecognitionResult;
+  reset(): void;
+  readonly available: boolean;
 }
 
 export interface RecognizerOptions {
   exercise?: "hand-visibility";
   targetId: string;
   targetLabel: string;
-  targetKind: "static" | "dynamic";
   labels: Readonly<Record<string, string>>;
   staticModels: ReadonlyMap<string, StaticGestureModel>;
-  dynamicModels: ReadonlyMap<string, DynamicGestureModel>;
   dominantHand: Hand;
   /** 1 = default strictness; > 1 is more forgiving. */
   tolerance?: number;
+  diagnostics?: boolean;
   /** Gesture-specific hint overrides from the database. */
   customHints?: Partial<Record<GestureErrorCode, string>>;
 }
@@ -50,10 +47,9 @@ interface Hint {
 
 const ALL_LANDMARKS = Array.from({ length: 21 }, (_, index) => index);
 
-export function hasModel(options: Pick<RecognizerOptions, "targetId" | "targetKind" | "staticModels" | "dynamicModels">) {
-  return options.targetKind === "static"
-    ? options.staticModels.has(options.targetId)
-    : options.dynamicModels.has(options.targetId);
+/** Whether recorded samples exist for the target gesture. */
+export function hasModel(options: Pick<RecognizerOptions, "targetId" | "staticModels">) {
+  return options.staticModels.has(options.targetId);
 }
 
 /** Picks the signing hand: the dominant one if visible, otherwise the biggest. */
@@ -69,7 +65,7 @@ export function pickHand(hands: readonly HandObservation[], dominant: Hand) {
   );
 }
 
-function environmentProblem(hand: HandObservation | undefined, brightness?: number) {
+function environmentIssue(hand: HandObservation | undefined, brightness?: number) {
   if (!hand) {
     if (brightness !== undefined && brightness < 45)
       return { code: "LOW_LIGHT" as const, message: hints.lowLight() };
@@ -87,106 +83,122 @@ function environmentProblem(hand: HandObservation | undefined, brightness?: numb
 }
 
 // Один экземпляр хранит удержание и подсказки только для текущего шага урока.
-export function createGestureRecognizer(options: RecognizerOptions) {
-  const stabilizer = new HoldStabilizer();
-  const hintSelector = new HintSelector<Hint>();
-  const segmenter = new MotionSegmenter();
-  let succeeded: RecognitionResult | undefined;
-  let verdict: { result: RecognitionResult; until: number } | undefined;
-  let noHandSince = 0;
+export class GestureRecognizer implements GestureRecognizerApi {
+  private readonly options: RecognizerOptions;
+  private readonly stabilizer: HoldStabilizer;
+  private readonly hintSelector: HintSelector<Hint>;
+  private succeeded: RecognitionResult | undefined;
+  private noHandSince: number;
+  private diagnostics: RecognitionResult["diagnostics"];
 
-  function hasReference() {
-    return options.exercise === "hand-visibility" || hasModel(options);
+  constructor(options: RecognizerOptions) {
+    this.options = options;
+    this.stabilizer = new HoldStabilizer();
+    this.hintSelector = new HintSelector<Hint>();
+    this.succeeded = undefined;
+    this.noHandSince = 0;
   }
 
-  function reset() {
-    stabilizer.reset();
-    hintSelector.reset();
-    segmenter.reset();
-    succeeded = undefined;
-    verdict = undefined;
-    noHandSince = 0;
+  /** Whether the recognizer can evaluate the target (samples exist or visibility exercise). */
+  get available() {
+    return this.canEvaluate();
   }
 
-  function makeResult(partial: Partial<RecognitionResult> & { status: RecognitionStatus }): RecognitionResult {
+  private canEvaluate() {
+    return this.options.exercise === "hand-visibility" || hasModel(this.options);
+  }
+
+  reset() {
+    this.stabilizer.reset();
+    this.hintSelector.reset();
+    this.diagnostics = undefined;
+    this.succeeded = undefined;
+    this.noHandSince = 0;
+  }
+
+  private makeResult(partial: Partial<RecognitionResult> & { status: RecognitionStatus }): RecognitionResult {
     return {
-      targetGesture: options.targetLabel,
+      targetLabel: this.options.targetLabel,
       confidence: 0,
       holdProgress: 0,
+      ...(this.options.diagnostics ? { diagnostics: this.diagnostics } : {}),
       ...partial,
     };
   }
 
-  function hintMessage(code: GestureErrorCode, fallback: string) {
-    return options.customHints?.[code] ?? fallback;
+  private hintMessage(code: GestureErrorCode, fallback: string) {
+    return this.options.customHints?.[code] ?? fallback;
   }
 
-  function recognizeFrame(frame: VisionFrame): RecognitionResult {
-    if (succeeded) return succeeded;
-    const hand = pickHand(frame.hands, options.dominantHand);
-    const problem = environmentProblem(hand, frame.brightness);
+  recognizeFrame(frame: VisionFrame): RecognitionResult {
+    if (this.succeeded) return this.succeeded;
+    if (!this.canEvaluate()) return this.makeResult({
+      status: "idle", referenceIssue: "missing",
+      message: "Для этого жеста пока нет эталона положения руки. Оценка недоступна",
+    });
+    const hand = pickHand(frame.hands, this.options.dominantHand);
+    const issue = environmentIssue(hand, frame.brightness);
     if (!hand) {
-      noHandSince ||= frame.t;
-      if (hasReference() && options.targetKind === "dynamic" && !problem) {
-        const completed = recognizeMovement(undefined, frame);
-        if (completed.status === "success" || completed.status === "almost" || completed.status === "incorrect") return completed;
+      this.noHandSince ||= frame.t;
+      this.stabilizer.push(false, frame.t);
+      if (issue) {
+        return this.makeResult({ status: "environment-error", message: issue.message, errorCodes: [issue.code] });
       }
-      stabilizer.push(false, frame.t);
-      if (problem)
-        return makeResult({ status: "environment-error", message: problem.message, errorCodes: [problem.code] });
-      return makeResult({ status: "idle", message: frame.t - noHandSince > 800 ? hints.handNotVisible() : undefined });
+      return this.makeResult({ status: "idle", message: frame.t - this.noHandSince > 800 ? hints.handNotVisible() : undefined });
     }
-    noHandSince = 0;
-    if (problem) {
-      stabilizer.push(false, frame.t);
-      return makeResult({ status: "environment-error", message: problem.message, errorCodes: [problem.code] });
+    this.noHandSince = 0;
+    if (issue) {
+      this.stabilizer.push(false, frame.t);
+      return this.makeResult({ status: "environment-error", message: issue.message, errorCodes: [issue.code] });
     }
-    if (options.exercise === "hand-visibility") {
-      const hold = stabilizer.push(true, frame.t);
-      const result = makeResult({
+    if (this.options.exercise === "hand-visibility") {
+      const hold = this.stabilizer.push(true, frame.t);
+      const result = this.makeResult({
         status: hold.success ? "success" : "searching",
         holdProgress: hold.progress,
         correctLandmarks: ALL_LANDMARKS,
         message: hold.success ? "Рука обнаружена и удержана в кадре. Тест завершён." : "Вижу руку. Удерживайте её полностью в кадре.",
       });
-      if (hold.success) succeeded = result;
+      if (hold.success) this.succeeded = result;
       return result;
     }
-    if (!hasReference()) return makeResult({ status: "idle", message: hints.noSamples() });
-    return options.targetKind === "static"
-      ? recognizeStaticHand(hand, frame.t)
-      : recognizeMovement(hand, frame);
+    return this.recognizeStaticHand(hand, frame.t);
   }
 
-  function recognizeStaticHand(hand: HandObservation, t: number): RecognitionResult {
-    const { staticModels, targetId, labels } = options;
-    const tolerance = options.tolerance ?? 1;
+  private recognizeStaticHand(hand: HandObservation, t: number): RecognitionResult {
+    const { staticModels, targetId, labels } = this.options;
+    const tolerance = this.options.tolerance ?? 1;
     const model = staticModels.get(targetId);
-    if (!model) return makeResult({ status: "idle", message: hints.noSamples() });
+    if (!model) return this.makeResult({ status: "idle", message: hints.noSamples() });
     const features = extractHandFeatures(hand.world, hand.hand);
     const decision = compareStaticGesture(features, targetId, staticModels, tolerance);
-    if (!decision) return makeResult({ status: "idle", message: hints.noSamples() });
+    if (!decision) return this.makeResult({ status: "idle", message: hints.noSamples() });
     const { distance, accept, rival, matched } = decision;
+    if (this.options.diagnostics) this.diagnostics = {
+      targetId, sampleCount: model.samples.length, distance, threshold: accept,
+      nearestGestureId: decision.nearest.gestureId,
+      rivalDistance: rival?.distance, matched,
+    };
     const confidence = similarity(distance, accept);
-    const hold = stabilizer.push(matched, t);
+    const hold = this.stabilizer.push(matched, t);
     if (hold.success) {
-      succeeded = makeResult({
+      this.succeeded = this.makeResult({
         status: "success",
         confidence,
         holdProgress: 1,
-        predictedGesture: options.targetLabel,
+        predictedLabel: this.options.targetLabel,
         correctLandmarks: ALL_LANDMARKS,
       });
-      return succeeded;
+      return this.succeeded;
     }
     if (matched) {
-      hintSelector.reset();
-      return makeResult({
+      this.hintSelector.reset();
+      return this.makeResult({
         status: "searching",
         confidence,
         holdProgress: hold.progress,
         message: hints.holdStill(),
-        predictedGesture: options.targetLabel,
+        predictedLabel: this.options.targetLabel,
         correctLandmarks: ALL_LANDMARKS,
       });
     }
@@ -205,79 +217,27 @@ export function createGestureRecognizer(options: RecognizerOptions) {
       candidate = {
         code: issue.code,
         status: distance <= accept * 2.2 ? "almost" : "incorrect",
-        message: hintMessage(issue.code, issue.message),
+        message: this.hintMessage(issue.code, issue.message),
         landmarks: analysis.incorrectLandmarks,
       };
     }
-    const hint = hintSelector.push(candidate, t);
+    const hint = this.hintSelector.push(candidate, t);
     if (!hint)
-      return makeResult({ status: "searching", confidence, message: hints.checking() });
-    return makeResult({
+      return this.makeResult({ status: "searching", confidence, message: hints.checking() });
+    return this.makeResult({
       status: hint.status,
       confidence,
       message: hint.message,
       errorCodes: [hint.code],
       incorrectLandmarks: hint.landmarks,
       correctLandmarks: analysis.correctLandmarks.filter((index) => !hint.landmarks.includes(index)),
-      predictedGesture: wrong ? labels[wrong.gestureId] : undefined,
+      predictedLabel: wrong ? labels[wrong.gestureId] : undefined,
     });
   }
 
-  function recognizeMovement(hand: HandObservation | undefined, frame: VisionFrame): RecognitionResult {
-    const { dynamicModels, targetId, labels } = options;
-    const tolerance = options.tolerance ?? 1;
-    const model = dynamicModels.get(targetId);
-    if (!model) return makeResult({ status: "idle", message: hints.noSamples() });
-    const point = hand ? { vector: motionVector(extractHandFeatures(hand.world, hand.hand), handLocation(hand.image, hand.hand, frame.body)), t: frame.t } : undefined;
-    const recording = segmenter.push(point, frame.t);
-    if (!recording) {
-      if (segmenter.recording) {
-        verdict = undefined;
-        return makeResult({
-          status: "searching",
-          holdProgress: segmenter.progress(frame.t),
-          message: hints.recording(),
-        });
-      }
-      if (verdict && frame.t < verdict.until) return verdict.result;
-      return makeResult({ status: "searching", message: hints.startMoving() });
-    }
-    const { distance } = distanceToDynamicModel(recording.sequence, model);
-    const accept = model.acceptDistance * tolerance;
-    const confidence = similarity(distance, accept);
-    if (distance <= accept) {
-      succeeded = makeResult({
-        status: "success",
-        confidence,
-        holdProgress: 1,
-        predictedGesture: options.targetLabel,
-        correctLandmarks: ALL_LANDMARKS,
-      });
-      return succeeded;
-    }
-    const analysis = analyzeDynamic(recording.sequence, recording.durationMs, model);
-    let best: { id: string; distance: number } | undefined;
-    for (const [id, other] of dynamicModels) {
-      if (id === targetId) continue;
-      const value = distanceToDynamicModel(recording.sequence, other).distance;
-      if (value <= other.acceptDistance * tolerance && (!best || value < best.distance))
-        best = { id, distance: value };
-    }
-    const wrong = best && best.distance < distance * 0.75;
-    const code: GestureErrorCode = wrong ? "WRONG_GESTURE" : (analysis.errorCodes[0] ?? "AMPLITUDE");
-    const message = wrong
-      ? hints.similarTo(labels[best?.id ?? ""] ?? "другой жест", analysis.message)
-      : hintMessage(code, analysis.message ?? "Повторите движение, как на эталоне.");
-    const result = makeResult({
-      status: wrong || distance > accept * 2 ? "incorrect" : "almost",
-      confidence,
-      message,
-      errorCodes: [code],
-      incorrectLandmarks: analysis.incorrectLandmarks,
-    });
-    verdict = { result, until: frame.t + 2200 };
-    return result;
-  }
+}
 
-  return { recognizeFrame, reset, get available() { return hasReference(); } };
+/** Creates a recognizer for one lesson step. */
+export function createGestureRecognizer(options: RecognizerOptions): GestureRecognizerApi {
+  return new GestureRecognizer(options);
 }

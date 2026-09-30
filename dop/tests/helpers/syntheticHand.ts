@@ -9,7 +9,7 @@ export interface HandPose {
   pinky?: [number, number, number];
 }
 
-const bases: Record<string, { base: Point3; dir: Point3; lengths: number[] }> = {
+const FINGER_BASES: Record<string, { base: Point3; dir: Point3; lengths: number[] }> = {
   thumb: { base: { x: 0.025, y: -0.02, z: 0 }, dir: { x: 0.6, y: -0.8, z: 0 }, lengths: [0.035, 0.03, 0.025] },
   index: { base: { x: 0.022, y: -0.09, z: 0 }, dir: { x: 0.05, y: -1, z: 0 }, lengths: [0.04, 0.025, 0.022] },
   middle: { base: { x: 0, y: -0.095, z: 0 }, dir: { x: 0, y: -1, z: 0 }, lengths: [0.045, 0.028, 0.024] },
@@ -36,7 +36,7 @@ export function makeHand(pose: HandPose = {}, noise = 0, seed = 1): Point3[] {
   });
   const points: Point3[] = [{ x: 0, y: 0, z: 0 }];
   for (const finger of ["thumb", "index", "middle", "ring", "pinky"] as const) {
-    const { base, dir, lengths } = bases[finger]!;
+    const { base, dir, lengths } = FINGER_BASES[finger]!;
     const flex = pose[finger] ?? [0, 0, 0];
     const size = Math.hypot(dir.x, dir.y) || 1;
     const planar = { x: dir.x / size, y: dir.y / size };
@@ -58,10 +58,12 @@ export function makeHand(pose: HandPose = {}, noise = 0, seed = 1): Point3[] {
   return points;
 }
 
+/** Scales and shifts every point of the hand. */
 export function transform(points: Point3[], scale: number, offset: Point3): Point3[] {
   return points.map((p) => ({ x: p.x * scale + offset.x, y: p.y * scale + offset.y, z: p.z * scale + offset.z }));
 }
 
+/** Mirrors the hand along x, turning a right hand into a left one. */
 export function mirror(points: Point3[]): Point3[] {
   return points.map((p) => ({ x: -p.x, y: p.y, z: p.z }));
 }
@@ -71,6 +73,7 @@ export function toImage(points: Point3[], center = { x: 0.5, y: 0.6 }): Point3[]
   return points.map((p) => ({ x: center.x + p.x * 2.2, y: center.y + p.y * 2.2, z: p.z }));
 }
 
+/** Ready-made poses for the synthetic hand. */
 export const OPEN: HandPose = {};
 export const FIST: HandPose = {
   thumb: [0.4, 0.5, 0.4],

@@ -1,13 +1,13 @@
-import { uiText } from "../../lib/uiText";
 import { Check, LockKeyhole, Play, RotateCcw, Star } from "lucide-react";
 import { Link } from "react-router-dom";
+import { uiText } from "../../lib/uiText";
 import { lessonSections } from "../../data/lessons";
 import { ROUTES } from "../../app/constants";
 import { lessonStatus } from "../../services/progressService";
 import type { Lesson } from "../../types/lesson";
 import type { LearningProgress } from "../../types/progress";
 
-const offsets = [0, -45, 0, 45];
+const NODE_OFFSETS = [0, -45, 0, 45];
 function lessonsCount(count: number) {
   const tens = count % 100;
   const ones = count % 10;
@@ -44,13 +44,14 @@ export function LearningPath({
                     : section.title}
                 </h2>
                 <p>{uiText(section.description)}</p>
+                <small>{items.filter(item => progress.lessons[item.id]).length} / {items.length} пройдено</small>
               </div>
             </div>
             <ol className="path-nodes">
               {items.map((lesson, index) => {
                 const status = lessonStatus(lesson, lessons, progress);
-                const x = 80 + (offsets[index % offsets.length] ?? 0);
-                const nextX = 80 + (offsets[(index + 1) % offsets.length] ?? 0);
+                const x = 80 + (NODE_OFFSETS[index % NODE_OFFSETS.length] ?? 0);
+                const nextX = 80 + (NODE_OFFSETS[(index + 1) % NODE_OFFSETS.length] ?? 0);
                 const repetition = section.id === "alphabet" && index === 5;
                 const moreLetters = section.id === "alphabet" && index === 10;
                 const contents = (

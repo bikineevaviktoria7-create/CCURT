@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 
-// Browser-only modules keep their production imports; tests inject boundary doubles.
+/** Browser-only modules keep their production imports; tests inject boundary doubles. */
 export function loadBrowserModule<T>(path: string, imports: Record<string, unknown>, globals: Record<string, unknown> = {}): T {
   const source = readFileSync(new URL(`../../../${path}`, import.meta.url), "utf8");
   const { outputText } = ts.transpileModule(source.replaceAll("import.meta.env", "__env"), {

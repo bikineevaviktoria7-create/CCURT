@@ -1,7 +1,7 @@
 import type { Gesture, ReferenceMedia } from "../types/lesson";
 
 // The full Russian alphabet for fingerspelling (дактиль). Ids 1–15 keep the order
-// of the original lessons; the rest follow the alphabet. Letters marked "dynamic"
+// of the original lessons; the rest follow the alphabet. Letters marked positionOnly
 // are shown with a movement in Russian Sign Language — check them against a
 // video dictionary (e.g. spreadthesign.com) before recording samples.
 const lessonLetters = ["А", "Б", "В", "Г", "Е", "И", "Л", "М", "Н", "О", "П", "С", "Т", "У", "Ш"];
@@ -56,7 +56,8 @@ export const alphabet: readonly Gesture[] = [...lessonLetters, ...otherLetters].
     label,
     title: `Буква ${label}`,
     category: "letter",
-    kind: withMovement.has(label) ? "dynamic" : "static",
+    kind: "static",
+    positionOnly: withMovement.has(label),
     description: DESCRIPTIONS[label] ?? PLACEHOLDER_DESCRIPTION,
     difficulty: 1,
   }),

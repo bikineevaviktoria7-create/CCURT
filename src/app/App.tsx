@@ -1,7 +1,7 @@
-import { feedback } from "../lib/feedback";
 import { useEffect } from "react";
 import { MotionConfig } from "framer-motion";
 import { RouterProvider } from "react-router-dom";
+import { soundFeedback } from "../lib/soundFeedback";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
 import { APP_NAME } from "./constants";
 import { router } from "./router";
@@ -13,7 +13,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const unlock = (event: Event) => { if (event.isTrusted) feedback.unlock(); };
+    const unlock = (event: Event) => { if (event.isTrusted) soundFeedback.unlock(); };
     window.addEventListener("pointerdown", unlock);
     window.addEventListener("keydown", unlock);
     return () => {

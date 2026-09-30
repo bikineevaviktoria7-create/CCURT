@@ -1,38 +1,61 @@
-const prefix = "rsl-trainer:v1:";
-const memory = new Map<string, unknown>();
-let available = true;
+const STORAGE_PREFIX = "rsl-trainer:v1:";
 
-export const storage = {
+/** JSON key-value store. */
+export interface KeyValueStorage {
+  read(key: string): unknown;
+  write(key: string, value: unknown): void;
+  remove(key: string): void;
+  /** False after localStorage failed; values then live only in memory (arrow field). */
+  isPersistent: () => boolean;
+}
+
+/** JSON key-value store over localStorage with an in-memory fallback. */
+export class BrowserStorage implements KeyValueStorage {
+  private prefix: string;
+  private memory = new Map<string, unknown>();
+  private available = true;
+
+  constructor(prefix: string) {
+    this.prefix = prefix;
+  }
+
   read(key: string): unknown {
-    if (memory.has(key)) return memory.get(key);
+    if (this.memory.has(key)) return this.memory.get(key);
     try {
-      const value = localStorage.getItem(prefix + key);
-      return value === null ? memory.get(key) : (JSON.parse(value) as unknown);
+      const value = localStorage.getItem(this.prefix + key);
+      return value === null ? this.memory.get(key) : (JSON.parse(value) as unknown);
     } catch {
-      return memory.get(key);
+      return this.memory.get(key);
     }
-  },
+  }
+
   write(key: string, value: unknown) {
-    memory.set(key, value);
+    this.memory.set(key, value);
     try {
-      localStorage.setItem(prefix + key, JSON.stringify(value));
+      localStorage.setItem(this.prefix + key, JSON.stringify(value));
     } catch {
-      available = false;
+      this.available = false;
     }
-  },
+  }
+
   remove(key: string) {
-    memory.delete(key);
+    this.memory.delete(key);
     try {
-      localStorage.removeItem(prefix + key);
+      localStorage.removeItem(this.prefix + key);
     } catch {
       // Do not resurrect the stale disk value after a failed removal.
-      memory.set(key, undefined);
-      available = false;
+      this.memory.set(key, undefined);
+      this.available = false;
     }
-  },
-  isPersistent: () => available,
-};
+  }
 
+  isPersistent = () => this.available;
+}
+
+/** Shared app storage under the `rsl-trainer:v1:` prefix. */
+export const storage: KeyValueStorage = new BrowserStorage(STORAGE_PREFIX);
+
+/** True for a plain object (not null, not an array). */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

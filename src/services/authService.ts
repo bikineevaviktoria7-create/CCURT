@@ -1,33 +1,53 @@
 import { isRecord, storage } from "../lib/storage";
-import { DEMO_PASSWORD, DEMO_USERS } from "../app/constants";
-import { currentUser } from "./accessService";
-import type { LoginCredentials, User } from "../types/auth";
+import { MOCK_PASSWORD, MOCK_USERS } from "../app/constants";
+import { getCurrentUser } from "./accessService";
+import type { AuthService, LoginCredentials, User } from "../types/auth";
 
-function remember(user: User) {
-  storage.write("user", user);
-  return user;
-}
+/** Key-value storage the signed-in user is kept in. */
+type AuthStorage = Pick<typeof storage, "read" | "write" | "remove">;
 
-// Hackathon accounts only; lesson progress remains keyed by each stable user ID.
-export const authService = {
-  isRemote: false,
-  getUser: currentUser,
-  async init() { return currentUser(); },
-  onSignedOut(callback: () => void) { void callback; return () => undefined; },
+/** Hackathon accounts only; lesson progress remains keyed by each stable user ID. */
+export class MockAuthService implements AuthService {
+  readonly isRemote: boolean;
+  private storage: AuthStorage;
+  private readCurrentUser: () => User | null;
+
+  constructor(authStorage: AuthStorage, currentUser: () => User | null) {
+    this.isRemote = false;
+    this.storage = authStorage;
+    this.readCurrentUser = currentUser;
+  }
+
+  getCurrentUser = (): User | null => this.readCurrentUser();
+
+  async initialize() { return this.readCurrentUser(); }
+
+  onSignedOut(callback: () => void) { void callback; return () => undefined; }
+
   guest() {
-    const previous = storage.read("guest");
+    const previous = this.storage.read("guest");
     const user: User = {
       id: isRecord(previous) && typeof previous.id === "string" ? previous.id : crypto.randomUUID(),
       name: "Гость", isGuest: true,
     };
-    storage.write("guest", user);
-    return remember(user);
-  },
+    this.storage.write("guest", user);
+    return this.remember(user);
+  }
+
   async login({ email: login, password }: LoginCredentials): Promise<User> {
-    const account = DEMO_USERS.find(user => user.name === login.trim());
-    if (!account || password !== DEMO_PASSWORD)
+    const account = MOCK_USERS.find(user => user.name === login.trim());
+    if (!account || password !== MOCK_PASSWORD)
       throw new Error("Неверный логин или пароль");
-    return remember({ id: account.id, name: account.name, isGuest: false, role: "user", authProvider: "mock" });
-  },
-  logout() { storage.remove("user"); },
-};
+    return this.remember({ id: account.id, name: account.name, isGuest: false, role: "user", authProvider: "mock" });
+  }
+
+  logout() { this.storage.remove("user"); }
+
+  private remember(user: User) {
+    this.storage.write("user", user);
+    return user;
+  }
+}
+
+/** Shared sign-in service of the app. */
+export const authService: AuthService = new MockAuthService(storage, getCurrentUser);

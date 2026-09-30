@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowRight, Check, RotateCcw, Star } from "lucide-react";
+import { ArrowRight, Check, RotateCcw, Star, X } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { useApp } from "../context/appState";
 import { useLessons } from "../hooks/useLessons";
-import { errorLabels, frequentErrors, isDemoResult, lessonStatus, progressService } from "../services/progressService";
-import { feedback } from "../lib/feedback";
+import { useCompletionSound } from "../hooks/useCompletionSound";
+import { ERROR_LABELS, frequentErrors, isDemoResult, isPassedResult, lessonStatus, progressService } from "../services/progressService";
 import { Page } from "../components/layout/Page";
 import { ContentState } from "../components/common/ContentState";
+import { SectionTitle } from "../components/lessons/SectionTitle";
 import { ROUTES } from "../app/constants";
 
 function ScoreReveal({ score }: { score: number }) {
@@ -41,14 +43,8 @@ export function ResultsPage() {
   const reduced = useReducedMotion();
   const result = progress.sessions.find((item) => item.sessionId === sessionId) ??
     (user && sessionId ? progressService.getResult(user.id, sessionId) : undefined);
-  const found = Boolean(result);
-  const completionSoundPlayed = useRef(false);
-  useEffect(() => {
-    if (found && !completionSoundPlayed.current) {
-      completionSoundPlayed.current = true;
-      feedback.lessonComplete();
-    }
-  }, [found]);
+  const passed = result ? isPassedResult(result) : false;
+  useCompletionSound(Boolean(result), passed);
   if (status !== "ready")
     return (
       <Page>
@@ -68,35 +64,40 @@ export function ResultsPage() {
       </Page>
     );
   const currentIndex = lessons.findIndex((item) => item.id === result.lessonId);
-  const next = currentIndex >= 0 ? lessons[currentIndex + 1] : undefined;
+  const next = currentIndex >= 0 ? lessons.slice(currentIndex + 1).find(item => item.sectionId === lessons[currentIndex]?.sectionId) : undefined;
   const lesson = lessons[currentIndex];
-  const demo = isDemoResult(result);
-  const nextAvailable = next && lessonStatus(next, lessons, progress) !== "locked";
-  const errors = frequentErrors(result.attempts).filter(({ label }) => label !== errorLabels.LOW_LIGHT);
+  const isDemo = isDemoResult(result);
+  const nextAvailable = passed && next && lessonStatus(next, lessons, progress) !== "locked";
+  const errors = frequentErrors(result.attempts).filter(({ label }) => label !== ERROR_LABELS.LOW_LIGHT);
   const seconds = Math.floor(result.durationMs / 1000);
   return (
     <Page>
       <section className="results-screen">
-        <span className="result-check result-celebrate">
-          <Check size={28} />
-        </span>
+        {passed ? (
+          <span className="result-check result-celebrate">
+            <Check size={28} />
+          </span>
+        ) : (
+          <span className="result-check result-check--failed">
+            <X size={28} aria-hidden="true" />
+          </span>
+        )}
         <span className="eyebrow">
-          {lesson?.sectionId === "alphabet" ? "Алфавит" : "Основные слова"} ·
-          Урок {lesson?.number}
+          {lesson ? <><SectionTitle sectionId={lesson.sectionId} /> · Урок {lesson.number}</> : "Сохранённый результат"}
         </span>
-        <h1>Урок завершён</h1>
-        {demo && <p className="notice">Этот результат не влияет на очки и прогресс обучения</p>}
-        <p>
+        <h1>{passed ? "Урок завершён" : "Урок не пройден — попробуйте ещё раз"}</h1>
+        {isDemo && <p className="notice">Этот результат не влияет на очки и прогресс обучения</p>}
+        {passed && <p>
           {lesson?.personalized === "name" && lesson.spelledName && lesson.spelledName.letters.length >= 2
             ? "Вы показали своё имя на жестовом языке!"
             : "Ещё один шаг к пониманию друг друга"}
-        </p>
+        </p>}
         <div
           className="result-stars"
           role="img"
           aria-label={`${result.stars} из 3 звёзд`}
         >
-          {!reduced && <span className="result-burst" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} style={{ "--angle": `${index * 30}deg`, "--reach": `${70 + index % 3 * 15}px` } as CSSProperties} />)}</span>}
+          {!reduced && passed && <span className="result-burst" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} style={{ "--angle": `${index * 30}deg`, "--reach": `${70 + index % 3 * 15}px` } as CSSProperties} />)}</span>}
           {[1, 2, 3].map((star) => (
             <motion.span
               aria-hidden="true"
@@ -164,19 +165,29 @@ export function ResultsPage() {
               Следующий урок
               <ArrowRight size={18} />
             </Link>
-          ) : !next && !demo ? (
+          ) : !passed && lesson ? (
+            <Link
+              className="button button--primary"
+              to={ROUTES.lesson(result.lessonId)}
+            >
+              <RotateCcw size={17} />
+              Пройти ещё раз
+            </Link>
+          ) : !next && !isDemo && lesson ? (
             <p className="notice">
-              Вы прошли все {lessons.length} уроков! Можно повторить любой на
+              Вы прошли раздел! Можно повторить любой урок на
               дорожке
             </p>
           ) : null}
-          <Link
-            className="button button--secondary"
-            to={ROUTES.lesson(result.lessonId)}
-          >
-            <RotateCcw size={17} />
-            Повторить урок
-          </Link>
+          {passed && lesson && (
+            <Link
+              className="button button--secondary"
+              to={ROUTES.lesson(result.lessonId)}
+            >
+              <RotateCcw size={17} />
+              Повторить урок
+            </Link>
+          )}
           <Link className="text-link" to={ROUTES.dashboard}>
             Вернуться на главную
           </Link>
